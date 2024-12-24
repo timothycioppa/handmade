@@ -1,5 +1,5 @@
 #include "r_main.hpp"
-#include "SceneObject.hpp"
+#include "scene_object.hpp"
 #include <map>
 
 unsigned int quadVAO;
@@ -7,11 +7,15 @@ unsigned int quadVBO;
 
 shader_coloredRect coloredRect;
 coloredrect_uniforms coloredRectUniforms;
+
 shader_texturedRect texturedRect;
 texrect_uniforms texRectUniforms;
+
 shader_shadowed standardShadowed;
 shadowed_uniforms shadowedUniforms;
+
 std::map <GameFont, FontInfo> fontmap;
+void initFSQ(); // initialize mesh for full screen quad
 
 void R_Init() 
 {
@@ -19,7 +23,10 @@ void R_Init()
     COMPILE_SHADER("Shaders/texturedRect.vert", "Shaders/texturedRect.frag", texturedRect)
     COMPILE_SHADER("Shaders/standardShadow.vert", "Shaders/standardShadow.frag", standardShadowed)
     
+    // generate mesh for full screen quad
+    initFSQ();
 
+    // generate font data
     fontmap.insert({ GameFont::Ariel, FontInfo() });
     FontInfo & ariell = fontmap[GameFont::Ariel];
     InitializeFont( "C:\\Users\\josel\\code\\cpp\\handmade\\Fonts\\arial.ttf", WINDOW_WIDTH, WINDOW_HEIGHT, &ariell);
@@ -44,28 +51,9 @@ void R_DrawText(std::string text, float x, float y, float scale, glm::vec3 color
     DrawText(text, x, y, scale, color, &fontInfo);
 }
 
-void R_RenderFullScreenQuad() 
-{ 
-    if (quadVAO == 0)
-    {
-        float quadVertices[] = 
-        {
-            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        };
-        glGenVertexArrays(1, &quadVAO);
-        glGenBuffers(1, &quadVBO);
-        glBindVertexArray(quadVAO);
-        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    }
 
+void R_RenderFullScreenQuad() 
+{
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
@@ -113,7 +101,7 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
 
     glEnable(GL_CULL_FACE);
     
-    for (SceneObject & so : scene.sceneObjects)
+    for (scene_object & so : scene.sceneObjects)
     {
         shadowedUniforms.diffuse = so.material.diffuse;
         shadowedUniforms.specular = so.material.specular;
@@ -129,4 +117,24 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
 
     unbind_shader(); 
     glDisable(GL_CULL_FACE);
+}
+
+void initFSQ() { 
+    float quadVertices[] = 
+    {
+        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+    };
+
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 }

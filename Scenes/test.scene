@@ -3,3 +3,13 @@ WALL o  20 0  0      n -1 0 0    d 40 40
 WALL o  0 0 20       n 0 0 -1     d 40 40
 WALL o  0 0 -20      n 0 0 1     d 40 40
 
+LIGHT 
+    col 1 1 1
+    int 1
+    pos 0 0 0
+    yaw 0
+    pitch 0
+    near 0.01
+    far 100
+    fwidth 20
+    fheight 20

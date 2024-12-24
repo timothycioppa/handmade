@@ -61,8 +61,14 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     return shadow;
 }
 
- 
+struct light_data 
+{ 
+    vec3 color;
+    vec3 direction;
+    float intensity;
+};
 
+uniform light_data lights[4];
 
 void main()
 {          
@@ -81,5 +87,6 @@ void main()
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
     vec3 specular = lightColor * (spec * material.specular);          
     vec3 result = (ambient + (1.0f - shadow) * ( diffuse + specular))  * (lightPower / 100.0f) * invSqDist;
+  
     FragColor = vec4(result, 1.0);
 }

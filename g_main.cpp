@@ -8,17 +8,17 @@
 
 float lightStrength = 0.5f;
 
-shader_depthPass depthPass;
-depth_Uniforms depthUniforms;
-shader_fullscreenBlit fullScreenBlit;
-screen_blit_uniforms blitUniforms;
+shader_depthPass shadowDepthPass;
+depth_Uniforms shadowDepthUniforms;
+
 shader_hdr_blit fullScreenHDRBlit;
 hdr_uniforms hdrBlitUniforms;
-FrameBufferInfo depthMapInfo;
-FrameBufferInfo colorBufferInfo;
+
+FrameBufferInfo shadowDepthMapFB;
+FrameBufferInfo hdrColorBufferFB;
 LightData lightData;
 TextureStore gTextureRepository;
-FrameBufferInfo hdrColorBufferInfo;
+
 bool useHDR = true;
 float exposure = 1.0f;
 
@@ -49,38 +49,15 @@ void GenerateHDRColorBuffer()
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    hdrColorBufferInfo.fbo = hdrFBO;
-    hdrColorBufferInfo.texture = colorBuffer;
-}
-
-void GenerateColorBuffer() 
-{
-    FrameBufferInfo * info = &colorBufferInfo;
-
-	glGenFramebuffers(1, &(info->fbo));
-	glBindFramebuffer(GL_FRAMEBUFFER, (info->fbo));
-	glGenTextures(1, &(info->texture));
-	glBindTexture(GL_TEXTURE_2D, info->texture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, info->texture, 0);  
-
-
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-	}
-    
-	glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+    hdrColorBufferFB.fbo = hdrFBO;
+    hdrColorBufferFB.texture = colorBuffer;
 }
 
 void GenerateShadowDepthBuffer() 
 { 
-    glGenFramebuffers(1, &(depthMapInfo.fbo));    
-    glGenTextures(1, &(depthMapInfo.texture));
-    glBindTexture(GL_TEXTURE_2D, depthMapInfo.texture);
+    glGenFramebuffers(1, &(shadowDepthMapFB.fbo));    
+    glGenTextures(1, &(shadowDepthMapFB.texture));
+    glBindTexture(GL_TEXTURE_2D, shadowDepthMapFB.texture);
 	{
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -90,9 +67,9 @@ void GenerateShadowDepthBuffer()
 	}
 
     // attach depth texture as FBO's depth buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapInfo.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowDepthMapFB.fbo);
     {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapInfo.texture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowDepthMapFB.texture, 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
     }
@@ -120,8 +97,7 @@ void G_Init()
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-    COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", depthPass)
-    COMPILE_SHADER("Shaders/blit.vert", "Shaders/blit.frag", fullScreenBlit);
+    COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", shadowDepthPass)
     COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
 
     GenerateHDRColorBuffer();
@@ -132,44 +108,21 @@ void G_Init()
 
 void G_RenderShadowDepth(scene_data & scene) 
 { 
-    BIND_SHADER(depthPass)   
+    BIND_SHADER(shadowDepthPass)   
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapInfo.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowDepthMapFB.fbo);
     glClear(GL_DEPTH_BUFFER_BIT);	                
-    depthUniforms.lightSpace = lightData.lightSpaceMatrix;
+    shadowDepthUniforms.lightSpace = lightData.lightSpaceMatrix;
 
-    for (SceneObject & so : scene.sceneObjects)
+    for (scene_object & so : scene.sceneObjects)
     {      
-        depthUniforms.model = so.transform.localToWorldMatrix();
-        set_uniforms(depthPass, depthUniforms);
+        shadowDepthUniforms.model = so.transform.localToWorldMatrix();
+        set_uniforms(shadowDepthPass, shadowDepthUniforms);
         render_mesh(so.mesh);
     }  
    
     unbind_shader();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void DEBUG_RenderScene(scene_data & scene) 
-{ 
-    static RenderContext context;
-
-    context.shadowMapID = depthMapInfo.texture;
-    context.cameraPosition = main_player.Position;
-    context.lightSpace = lightData.lightSpaceMatrix;
-    context.lightPosition = { 0.0f, 0.0f, 0.0f};
-    context.lightColor = {50.0f, 50.0f, 50.0f};
-    context.lightPower = 200.0f;
-    context.totalTime = gContext.applicationTime;
-    context.deltaTime = gContext.deltaTime;
-    context.sinTime = gContext.sinTime;
-    context.cosTime = gContext.cosTime;
-    context.v = main_player.ViewMatrix;
-    context.p = main_player.ProjectionMatrix;
-
-    R_RenderMeshStandardShadowed(
-        scene,
-        context
-    ); 
 }
 
 void G_StartFrame() 
@@ -178,17 +131,36 @@ void G_StartFrame()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
-void G_RenderColorBuffer(bool hdr, scene_data & scene) 
+void G_RenderToHDRColorBuffer( scene_data & scene) 
 { 
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferInfo.fbo);  
+
+
+    static RenderContext context;
+    context.shadowMapID = shadowDepthMapFB.texture;
+    context.cameraPosition = main_player.Position;
+    context.lightSpace = lightData.lightSpaceMatrix;
+    context.lightPosition = { 0.0f, 0.0f, 0.0f};
+    context.lightColor = {1.0f, 1.0f, 1.0f};
+    context.lightPower = 200.0f;
+    context.totalTime = gContext.applicationTime;
+    context.deltaTime = gContext.deltaTime;
+    context.sinTime = gContext.sinTime;
+    context.cosTime = gContext.cosTime;
+    context.v = main_player.ViewMatrix;
+    context.p = main_player.ProjectionMatrix;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
     glClearColor(lightStrength * 0.4f, lightStrength * 0.6f, lightStrength * 0.3f, 1.0f);
     glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    DEBUG_RenderScene(scene);
+    R_RenderMeshStandardShadowed(
+        scene,
+        context
+    ); 
 }
 
-void G_RenderFinalFrame(bool hdr) 
+void G_RenderFinalFrame() 
 {
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // back to default
@@ -196,7 +168,7 @@ void G_RenderFinalFrame(bool hdr)
     
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     BIND_SHADER(fullScreenHDRBlit);
-    hdrBlitUniforms.hdrBuffer = hdrColorBufferInfo.texture;
+    hdrBlitUniforms.hdrBuffer = hdrColorBufferFB.texture;
     hdrBlitUniforms.hdr = true;
     hdrBlitUniforms.exposure = 1.0;
     set_uniforms(fullScreenHDRBlit, hdrBlitUniforms);
@@ -204,9 +176,11 @@ void G_RenderFinalFrame(bool hdr)
     unbind_shader();
 }
 
-
 void G_Cleanup() 
 { 
+    RELEASE_SHADER(shadowDepthPass)
+    RELEASE_SHADER(fullScreenHDRBlit);
+
 	for (auto & [key, value] : gTextureRepository.TextureMap ) 
 	{ 
 		release_texture(value);
@@ -217,9 +191,9 @@ void G_RenderSceneShadowedFull(scene_data & scene)
 { 
 	G_StartFrame();
     G_RenderShadowDepth(scene);	
-    G_RenderColorBuffer(useHDR, scene);
+    G_RenderToHDRColorBuffer(scene);
     G_RenderOverlay();
-    G_RenderFinalFrame(useHDR);
+    G_RenderFinalFrame();
 }
 
 void G_RenderOverlay() 

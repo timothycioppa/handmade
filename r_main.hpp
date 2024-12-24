@@ -9,7 +9,7 @@
 #include "Graphics/GLRenderContext.hpp"
 #include "Graphics/GLMesh.hpp"
 #include "Graphics/GLTextRenderer.hpp"
-#include "SceneObject.hpp"
+#include "scene_object.hpp"
 #include "scene_parser.hpp"
 
 extern unsigned int quadVAO;

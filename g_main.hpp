@@ -3,7 +3,7 @@
 #include "Graphics/GLShader.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "game_data.hpp"
-#include "SceneObject.hpp"
+#include "scene_object.hpp"
 #include "TextureStore.hpp"
 #include "scene_parser.hpp"
 
@@ -24,10 +24,11 @@ struct FrameBufferInfo
 
 extern float lightStrength;
 
-extern shader_depthPass depthPass;
-extern depth_Uniforms depthUniforms;
-extern shader_fullscreenBlit fullScreenBlit;
-extern screen_blit_uniforms blitUniforms;
+extern shader_depthPass shadowDepthPass;
+extern depth_Uniforms shadowDepthUniforms;
+
+extern shader_hdr_blit fullScreenHDRBlit;
+extern hdr_uniforms hdrBlitUniforms;
 
 extern LightData lightData;
 extern unsigned int colorBufferUniformID;
@@ -35,8 +36,8 @@ extern TextureStore gTextureRepository;
 
 void G_Init();
 void G_RenderShadowDepth(scene_data & scene);
-void G_RenderColorBuffer(bool hdr, scene_data & scene);
-void G_RenderFinalFrame(bool hdr) ;
+void G_RenderToHDRColorBuffer( scene_data & scene);
+void G_RenderFinalFrame() ;
 void G_StartFrame();
 void G_Cleanup();
 void G_RenderSceneShadowedFull(scene_data & scene);

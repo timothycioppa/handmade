@@ -1,5 +1,6 @@
 #include "scene_parser.hpp"
 #include "g_main.hpp"
+#include "light.hpp"
 using namespace std;
 
 void load_scene(const char* filename, scene_data & scene) 
@@ -29,9 +30,20 @@ void load_scene(const char* filename, scene_data & scene)
             stream >> soKey >> wall.width >> wall.height;
             scene.room_walls.push_back(wall);    
         }
-        count++;
-        if (count == 4) { 
-            break;
+        
+        if (key == "LIGHT") 
+        {
+            light l;
+            stream >> soKey >> l.Color.x >> l.Color.y >> l.Color.z;
+            stream >> soKey >> l.intensity;
+            stream >> soKey >> l.Position.x >> l.Position.y >> l.Position.z;
+            stream >> soKey >> l.Yaw;
+            stream >> soKey >> l.Pitch;
+            stream >> soKey >> l.near;
+            stream >> soKey >> l.far;
+            stream >> soKey >> l.frustrumWidth;
+            stream >> soKey >> l.frustrumHeight;
+            scene.lights.push_back(l);
         }
     } 
 
@@ -39,7 +51,7 @@ void load_scene(const char* filename, scene_data & scene)
 
     for (room_wall wall : scene.room_walls) 
     { 
-        SceneObject so;
+        scene_object so;
         so.enabled = true;
         so.Name = "test object";
 
@@ -59,9 +71,16 @@ void load_scene(const char* filename, scene_data & scene)
         scene.sceneObjects.push_back(so);
     }
 
-    for (SceneObject & so : scene.sceneObjects) 
+    for (scene_object & so : scene.sceneObjects) 
     {
-        so.initialize_mesh("Models/quad.obj");
+        initialize_mesh("Models/quad.obj", so);
+    }
+
+    for (light & l : scene.lights) 
+    {
+        l.WorldUp = {0.0f, 1.0f, 0.0f};
+        update_light_direction(l);
+        update_projection_matrix(l);
     }
 
 }
