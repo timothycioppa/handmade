@@ -19,9 +19,6 @@ struct MaterialInfo
 
 class SceneObject 
 { 
-    private:
-        MaterialInfo matinfo;
-
     public:
         bool enabled;
         Transform transform;
@@ -29,19 +26,11 @@ class SceneObject
         Material material;
         std::string Name;
 
-        SceneObject(
-            std::string name,
-            std::string modelSource, 
-            MaterialInfo matInfo, 
-            const Transform & other) 
+        void initialize_mesh(std::string modelSource) 
         { 
-            enabled = true;
-            Name = name;
-            transform = other;      
             load_mesh(modelSource.c_str(), mesh);
-            this->matinfo = matInfo;
-        } 
- 
+        }
+        
         void Release() 
         { 
             release_mesh(mesh);

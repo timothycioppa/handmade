@@ -41,7 +41,7 @@ void main()
     vec3 specular = specularColor * pow(specValue, specularSharpness) * InvSqDist;
 
     vec3 color = lightColor * lightPower * (diffuse + specular) + ambientColor;
-    vec3 gammaCorrected = pow(color, vec3(1.0f / 2.2f));
+    vec3 gammaCorrected = pow(color, vec3(0.45454545454f));
 
     FragColor = vec4(gammaCorrected, 1.0f);
 }

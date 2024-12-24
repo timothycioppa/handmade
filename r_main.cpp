@@ -87,18 +87,15 @@ void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c)
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture) 
 { 
     BIND_SHADER(texturedRect);
-
     texRectUniforms.dimensions = d;
     texRectUniforms.lowerLeft = ll;
     texRectUniforms.mainTex = texture->textureID; 
     set_uniforms(texturedRect, texRectUniforms);    
-
     R_RenderFullScreenQuad();
-
     unbind_shader();
 }
 
-void R_RenderMeshStandardShadowed(SceneObject ** objects, int num,  RenderContext & context)
+void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
 {
     BIND_SHADER(standardShadowed)
 
@@ -116,19 +113,18 @@ void R_RenderMeshStandardShadowed(SceneObject ** objects, int num,  RenderContex
 
     glEnable(GL_CULL_FACE);
     
-    for (int i = 0; i < num; i++) 
-    { 
-        SceneObject * so = objects[i];
-        shadowedUniforms.diffuse = so->material.diffuse;
-        shadowedUniforms.specular = so->material.specular;
-        shadowedUniforms.shininess = so->material.shininess;
-        shadowedUniforms.mainTex = so->material.mainTexture->textureID;
-        shadowedUniforms.model = so->transform.localToWorldMatrix();
+    for (SceneObject & so : scene.sceneObjects)
+    {
+        shadowedUniforms.diffuse = so.material.diffuse;
+        shadowedUniforms.specular = so.material.specular;
+        shadowedUniforms.shininess = so.material.shininess;
+        shadowedUniforms.mainTex = so.material.mainTexture->textureID;
+        shadowedUniforms.model = so.transform.localToWorldMatrix();
         shadowedUniforms.modelView = context.v * shadowedUniforms.model;
         shadowedUniforms.modelViewProjection = context.p * shadowedUniforms.modelView;
 
         set_uniforms(standardShadowed, shadowedUniforms);
-        render_mesh(so->mesh);
+        render_mesh(so.mesh);
     }
 
     unbind_shader(); 

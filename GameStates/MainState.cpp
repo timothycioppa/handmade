@@ -1,24 +1,17 @@
 #include "MainState.hpp"
 #include "../include/glm/glm.hpp"
 #include "../math_utils.hpp"
+#include "../scene_parser.hpp"
 
 #define WALL_TEST_THRESHOLD 0.11f
 
+scene_data scene;
+
 void Main_Init(game_context & context) 
 { 	
+    load_scene("Scenes/test.scene", scene);
 	Player_Init(&context);
 }
-
-#define MAKE_WALL(o,n,w,h) { {n, o}, w, h}
-room_wall test_walls[4] = 
-{
-    MAKE_WALL(glm::vec3(-5,0,0), glm::vec3(1,0,0), 10, 10),
-    MAKE_WALL(glm::vec3(5,0,0), glm::vec3(-1,0,0), 10, 10),
-    MAKE_WALL(glm::vec3(0,0,5), glm::vec3(0,0,-1), 10, 10),
-    MAKE_WALL(glm::vec3(0,0,-5), glm::vec3(0,0,1), 10, 10)
-};
-#undef MAKE_WALL
-
 
 void Main_Update(game_context & context) 
 { 
@@ -33,11 +26,12 @@ void Main_Update(game_context & context)
     { 
         glm::vec3 testPos = main_player.Position + WALL_TEST_THRESHOLD * main_player.MoveDir;
         bool canMove = true; 
+        float wallSide = 0.0f;
 
         /* check each wall to make sure the test position doesn't lie behind the wall before moving*/
-        for (int i = 0; i < 4; i++) 
-        { 
-            float wallSide = glm::dot(test_walls[i].wall_plane.normal, test_walls[i].wall_plane.origin - testPos);
+        for (const room_wall & wall: scene.room_walls)
+        {
+            wallSide = glm::dot(wall.wall_plane.normal, wall.wall_plane.origin - testPos);
             
             if (wallSide > -WALL_TEST_THRESHOLD) 
             {
@@ -51,12 +45,11 @@ void Main_Update(game_context & context)
             Player_UpdatePosition(&context);	
         }
     }
-
 }
 
 void Main_Render(game_context & context) 
 { 
-	G_RenderSceneShadowedFull();	
+	G_RenderSceneShadowedFull(scene);	
 }
 
 void Main_Destroy(game_context & context) 

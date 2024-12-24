@@ -13,5 +13,4 @@ void Main_Update(game_context & context) ;
 void Main_Render(game_context & context);
 void Main_Destroy(game_context & context) ;
 
-
 #endif

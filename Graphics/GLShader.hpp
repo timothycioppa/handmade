@@ -67,7 +67,26 @@ struct shadowed_uniforms
 struct screen_blit_uniforms { 
     unsigned int screenTexture;
 };
-struct text_render_uniforms { 
+
+struct hdr_uniforms { 
+    unsigned int hdrBuffer;
+    unsigned int hdr;
+    unsigned int exposure;
+};
+
+struct shader_hdr_blit
+{
+    compiled_shader shader;
+    struct 
+    { 
+        unsigned int hdrBuffer;
+        int hdr;
+        float exposure;
+    } uniformIDS;
+};
+
+struct text_render_uniforms 
+{ 
     glm::vec3 textColor;
     unsigned int text;
     glm::mat4 projection;
@@ -145,6 +164,8 @@ void shader_init_uniforms(shader_texturedRect & shader) ;
 void shader_init_uniforms(shader_coloredRect & shader) ;
 void shader_init_uniforms(shader_depthPass & shader) ;
 void shader_init_uniforms(shader_text_rendering & shader);
+void shader_init_uniforms(shader_hdr_blit & shader);
+
 
 void set_uniforms(shader_coloredRect & shader, coloredrect_uniforms & uniforms);
 void set_uniforms(shader_texturedRect & shader, texrect_uniforms & uniforms);
@@ -152,6 +173,7 @@ void set_uniforms(shader_shadowed & shader, shadowed_uniforms & uniforms);
 void set_uniforms(shader_depthPass & shader, depth_Uniforms & uniforms);
 void set_uniforms(shader_fullscreenBlit & shader, screen_blit_uniforms & uniforms);
 void set_uniforms(shader_text_rendering & shader, text_render_uniforms & uniforms);
+void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms);
 
 void set_int(GLuint id, const int value) ;
 void set_mat4(GLuint id, const glm::mat4 & matrix) ;

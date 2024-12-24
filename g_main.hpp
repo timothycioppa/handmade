@@ -5,6 +5,7 @@
 #include "game_data.hpp"
 #include "SceneObject.hpp"
 #include "TextureStore.hpp"
+#include "scene_parser.hpp"
 
 struct LightData 
 {
@@ -33,12 +34,12 @@ extern unsigned int colorBufferUniformID;
 extern TextureStore gTextureRepository;
 
 void G_Init();
-void G_RenderDepth();
-void G_RenderColorBuffer();
-void G_RenderFinalFrame();
+void G_RenderShadowDepth(scene_data & scene);
+void G_RenderColorBuffer(bool hdr, scene_data & scene);
+void G_RenderFinalFrame(bool hdr) ;
 void G_StartFrame();
 void G_Cleanup();
-void G_RenderSceneShadowedFull();
+void G_RenderSceneShadowedFull(scene_data & scene);
 void G_RenderOverlay();
 
 #endif

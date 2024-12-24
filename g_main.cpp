@@ -12,57 +12,45 @@ shader_depthPass depthPass;
 depth_Uniforms depthUniforms;
 shader_fullscreenBlit fullScreenBlit;
 screen_blit_uniforms blitUniforms;
+shader_hdr_blit fullScreenHDRBlit;
+hdr_uniforms hdrBlitUniforms;
 FrameBufferInfo depthMapInfo;
 FrameBufferInfo colorBufferInfo;
 LightData lightData;
 TextureStore gTextureRepository;
+FrameBufferInfo hdrColorBufferInfo;
+bool useHDR = true;
+float exposure = 1.0f;
 
-#define MAKE_WALL(o,n,w,h) { {n, o}, w, h}
+void GenerateHDRColorBuffer() 
+{ 
+    unsigned int hdrFBO;
+    unsigned int colorBuffer;
+    unsigned int rboDepth;
 
-room_wall walls[4] = 
-{
-    MAKE_WALL(glm::vec3(-5,0,0), glm::vec3(1,0,0), 10, 10),
-    MAKE_WALL(glm::vec3(5,0,0), glm::vec3(-1,0,0), 10, 10),
-    MAKE_WALL(glm::vec3(0,0,5), glm::vec3(0,0,-1), 10, 10),
-    MAKE_WALL(glm::vec3(0,0,-5), glm::vec3(0,0,1), 10, 10)
-};
+    glGenFramebuffers(1, &hdrFBO);
+    glGenTextures(1, &colorBuffer);
+    glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-#undef MAKE_WALL
-Transform debugTransforms[4];
-SceneObject* debugSceneobjects[4];
-
-void init_walls() 
-{
-    MaterialInfo debugMatinfo;
-    debugMatinfo.diffuse = {1.0f, 1.0f, 1.0f};
-    debugMatinfo.shininess = 1.0f;
-    debugMatinfo.specular = {1.0f, 1.0f, 1.0f};
-    debugMatinfo.ShaderType = "STANDARD_SHADOW";
-    debugMatinfo.MainTex = "Textures/arabesque.bmp";
-
-    for (int i = 0; i < 4; i++) 
-    { 
-        room_wall & wall = walls[i];
-        Transform & debugTransform = debugTransforms[i];
-
-        debugTransform.position = wall.wall_plane.origin;
-        debugTransform.scale = {wall.width, 1.0f, wall.height};
-        debugTransform.axis = glm::cross(wall.wall_plane.normal, glm::vec3(0,1,0));
-        debugTransform.rotation = glm::radians(90.0f);
-        debugTransform.MarkDirty();
-        
-        debugSceneobjects[i] = new SceneObject(
-            "DEBUG_SCENE_OBJECT",
-            "Models/quad.obj",
-            debugMatinfo,
-            debugTransform
-        );
-
-        debugSceneobjects[i]->material.mainTexture = gTextureRepository.GetTexture(debugMatinfo.MainTex);
-        debugSceneobjects[i]->material.diffuse =  debugMatinfo.diffuse;
-        debugSceneobjects[i]->material.specular =  debugMatinfo.specular;
-        debugSceneobjects[i]->material.shininess =  debugMatinfo.shininess;
+    glGenRenderbuffers(1, &rboDepth);
+    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+    
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) 
+    {
+        std::cout << "Framebuffer not complete!" << std::endl;
     }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    hdrColorBufferInfo.fbo = hdrFBO;
+    hdrColorBufferInfo.texture = colorBuffer;
 }
 
 void GenerateColorBuffer() 
@@ -79,12 +67,6 @@ void GenerateColorBuffer()
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, info->texture, 0);  
 
-	// unsigned int rbo;
-	// glGenRenderbuffers(1, &rbo);
-	// glBindRenderbuffer(GL_RENDERBUFFER, rbo); 
-	// glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);  
-	// glBindRenderbuffer(GL_RENDERBUFFER, 0);
-	// glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
 
 	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
@@ -94,7 +76,7 @@ void GenerateColorBuffer()
 	glBindFramebuffer(GL_FRAMEBUFFER, 0); 
 }
 
-void GenerateDepthBuffer() 
+void GenerateShadowDepthBuffer() 
 { 
     glGenFramebuffers(1, &(depthMapInfo.fbo));    
     glGenTextures(1, &(depthMapInfo.texture));
@@ -128,7 +110,7 @@ void GenerateLightData()
     lightData.near = 0.01f;
     lightData.far = 50.0f;
     lightData.projection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, lightData.near, lightData.far);
-	lightData.view = glm::lookAt(glm::vec3(5.0f, 5.0f, 5.0f), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+	lightData.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
 	lightData.lightSpaceMatrix = (lightData.projection) * (lightData.view);
 }
 
@@ -140,46 +122,43 @@ void G_Init()
 
     COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", depthPass)
     COMPILE_SHADER("Shaders/blit.vert", "Shaders/blit.frag", fullScreenBlit);
+    COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
 
-    GenerateColorBuffer();
-    GenerateDepthBuffer();
+    GenerateHDRColorBuffer();
+    GenerateShadowDepthBuffer();
     GenerateLightData();
-
-    // DEBUG CODE
-    init_walls();
 }
 
 
-void G_RenderDepth() 
+void G_RenderShadowDepth(scene_data & scene) 
 { 
     BIND_SHADER(depthPass)   
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapInfo.fbo);
     glClear(GL_DEPTH_BUFFER_BIT);	                
-    
     depthUniforms.lightSpace = lightData.lightSpaceMatrix;
 
-    for (int i = 0; i < 4; i++) 
-    { 
-        SceneObject * so = debugSceneobjects[i];
-        depthUniforms.model = so->transform.localToWorldMatrix();
+    for (SceneObject & so : scene.sceneObjects)
+    {      
+        depthUniforms.model = so.transform.localToWorldMatrix();
         set_uniforms(depthPass, depthUniforms);
-        render_mesh(so->mesh);
+        render_mesh(so.mesh);
     }  
    
     unbind_shader();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void DEBUG_RenderScene() 
+void DEBUG_RenderScene(scene_data & scene) 
 { 
     static RenderContext context;
+
     context.shadowMapID = depthMapInfo.texture;
     context.cameraPosition = main_player.Position;
     context.lightSpace = lightData.lightSpaceMatrix;
     context.lightPosition = { 0.0f, 0.0f, 0.0f};
-    context.lightColor = {1.0f, 1.0f, 1.0f};
-    context.lightPower = 50.0f;
+    context.lightColor = {50.0f, 50.0f, 50.0f};
+    context.lightPower = 200.0f;
     context.totalTime = gContext.applicationTime;
     context.deltaTime = gContext.deltaTime;
     context.sinTime = gContext.sinTime;
@@ -188,10 +167,9 @@ void DEBUG_RenderScene()
     context.p = main_player.ProjectionMatrix;
 
     R_RenderMeshStandardShadowed(
-        debugSceneobjects,
-        4,
+        scene,
         context
-    );
+    ); 
 }
 
 void G_StartFrame() 
@@ -200,25 +178,28 @@ void G_StartFrame()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 }
 
-void G_RenderColorBuffer() 
+void G_RenderColorBuffer(bool hdr, scene_data & scene) 
 { 
-	glBindFramebuffer(GL_FRAMEBUFFER, colorBufferInfo.fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferInfo.fbo);  
     glClearColor(lightStrength * 0.4f, lightStrength * 0.6f, lightStrength * 0.3f, 1.0f);
     glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    DEBUG_RenderScene();
+
+    DEBUG_RenderScene(scene);
 }
 
-void G_RenderFinalFrame() 
-{ 
+void G_RenderFinalFrame(bool hdr) 
+{
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // back to default
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f); 
-    glClear(GL_COLOR_BUFFER_BIT);
- 
-    BIND_SHADER(fullScreenBlit);
-    blitUniforms.screenTexture = colorBufferInfo.texture;
-    set_uniforms(fullScreenBlit, blitUniforms);
+    
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    BIND_SHADER(fullScreenHDRBlit);
+    hdrBlitUniforms.hdrBuffer = hdrColorBufferInfo.texture;
+    hdrBlitUniforms.hdr = true;
+    hdrBlitUniforms.exposure = 1.0;
+    set_uniforms(fullScreenHDRBlit, hdrBlitUniforms);
     R_RenderFullScreenQuad();
     unbind_shader();
 }
@@ -232,13 +213,13 @@ void G_Cleanup()
 	}
 }
 
-void G_RenderSceneShadowedFull() 
+void G_RenderSceneShadowedFull(scene_data & scene) 
 { 
 	G_StartFrame();
-    G_RenderDepth();	
-    G_RenderColorBuffer();
+    G_RenderShadowDepth(scene);	
+    G_RenderColorBuffer(useHDR, scene);
     G_RenderOverlay();
-    G_RenderFinalFrame();
+    G_RenderFinalFrame(useHDR);
 }
 
 void G_RenderOverlay() 

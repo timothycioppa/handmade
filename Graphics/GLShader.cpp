@@ -1,6 +1,21 @@
 #include "GLShader.hpp"
 
 
+void shader_init_uniforms(shader_hdr_blit & shader) 
+{
+    unsigned int pID = shader.shader.programID;
+    shader.uniformIDS.hdr = glGetUniformLocation(pID, "hdr");
+    shader.uniformIDS.hdrBuffer = glGetUniformLocation(pID, "hdrBuffer");
+    shader.uniformIDS.exposure = glGetUniformLocation(pID, "exposure");
+}
+void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms) 
+{
+    set_texture(shader.uniformIDS.hdrBuffer, uniforms.hdrBuffer, 0);
+    set_int(shader.uniformIDS.hdr, uniforms.hdr);
+    set_float(shader.uniformIDS.exposure, uniforms.exposure);
+}
+
+
 void shader_init_uniforms(shader_shadowed & shader) 
 {
     unsigned int pID = shader.shader.programID;

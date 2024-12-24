@@ -68,8 +68,10 @@ void main()
 {          
     float shadow = ShadowCalculation(fs_in.FragPosLightSpace);
     vec3 texColor = texture(material.mainTex, fs_in.TexCoords).rgb; 
-    vec3 ambient = lightColor * texColor;   
-
+    vec3 ambient = lightColor * texColor;
+    vec3 dLight = unity_LightPosition - fs_in.FragPos;
+    float invSqDist = 1.0f / (dLight.x * dLight.x + dLight.y * dLight.y + dLight.z * dLight.z);
+    float dist = distance(unity_LightPosition, fs_in.FragPos);
     vec3 norm = normalize(fs_in.Normal);
     vec3 lightDir = normalize(unity_LightPosition - fs_in.FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
@@ -78,7 +80,6 @@ void main()
     vec3 reflectDir = reflect(-lightDir, norm);  
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
     vec3 specular = lightColor * (spec * material.specular);          
-    vec3 result = (ambient + (1.0f - shadow) * ( diffuse + specular))  * (lightPower / 100.0f);
- 
+    vec3 result = (ambient + (1.0f - shadow) * ( diffuse + specular))  * (lightPower / 100.0f) * invSqDist;
     FragColor = vec4(result, 1.0);
 }

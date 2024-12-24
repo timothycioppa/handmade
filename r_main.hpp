@@ -10,6 +10,7 @@
 #include "Graphics/GLMesh.hpp"
 #include "Graphics/GLTextRenderer.hpp"
 #include "SceneObject.hpp"
+#include "scene_parser.hpp"
 
 extern unsigned int quadVAO;
 extern unsigned int quadVBO;
@@ -34,7 +35,7 @@ void R_Cleanup() ;
 void R_RenderFullScreenQuad() ;
 void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c) ;
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture);
-void R_RenderMeshStandardShadowed(SceneObject ** objects, int num,  RenderContext & context);
+void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context);
 void R_DrawText(std::string text, float x, float y, float scale, glm::vec3 color, GameFont font);  
 
 #endif
