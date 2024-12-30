@@ -11,13 +11,15 @@ struct player_data
     glm::vec3 Up;
     glm::vec3 Right;
     glm::vec3 WorldUp;
-    glm::mat4 ViewMatrix;
-    glm::mat4 ProjectionMatrix;
     glm::vec3 MoveDir;
     float Yaw;
     float Pitch;
     float MovementSpeed;
     float LookSpeed;
+    bool Jumping;
+    float JumpTimer;
+
+    camera_data camData;
 };
 
 extern player_data main_player;

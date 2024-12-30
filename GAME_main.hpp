@@ -7,7 +7,7 @@
 #include "g_main.hpp"
 #include "r_main.hpp"
 #include "player.hpp"
-#include "GameStates/MainState.hpp"
+#include "GameStates/Gameplay.hpp"
 
 extern glm::vec2 mousePos;
 extern glm::vec2 mouseDelta;

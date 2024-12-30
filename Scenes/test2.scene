@@ -1,7 +1,3 @@
-WALL o -20 0  0      n 1 0 0     d 40 40
-WALL o  20 0  0      n -1 0 0    d 40 40
-WALL o  0 0 20       n 0 0 -1     d 40 40
-WALL o  0 0 -20      n 0 0 1     d 40 40
 
 FLOOR o 0 0 0   d 50 50
 CEILING o 0 20 0   d 50 50

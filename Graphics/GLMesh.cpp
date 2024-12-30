@@ -42,12 +42,17 @@ void load_mesh(const char* fileName, static_mesh & m)
     }
 }
 
-void render_mesh(static_mesh & m) { 
+void render_mesh(static_mesh & m) 
+{ 
     glBindVertexArray(m.VAO);
     glDrawArrays(GL_TRIANGLES, 0, m.vertexCount);     
     glBindVertexArray(0);
 }
 
-void release_mesh (static_mesh & m) { 
+void release_mesh (static_mesh & m) 
+{ 
     glDeleteVertexArrays(1, &(m.VAO));
+    glDeleteBuffers(1, &(m.VBO));
+    glDeleteBuffers(1, &(m.NBO));
+    glDeleteBuffers(1, &(m.UVBO));
 }

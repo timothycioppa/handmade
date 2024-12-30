@@ -1,6 +1,11 @@
 #include "GLShader.hpp"
 
 
+void shader_init_uniforms(shader_render_lines shader) {}
+
+void set_uniforms(shader_render_lines & shader, line_render_uniforms & uniforms) {}
+
+
 void shader_init_uniforms(shader_hdr_blit & shader) 
 {
     unsigned int pID = shader.shader.programID;
@@ -8,6 +13,7 @@ void shader_init_uniforms(shader_hdr_blit & shader)
     shader.uniformIDS.hdrBuffer = glGetUniformLocation(pID, "hdrBuffer");
     shader.uniformIDS.exposure = glGetUniformLocation(pID, "exposure");
 }
+
 void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms) 
 {
     set_texture(shader.uniformIDS.hdrBuffer, uniforms.hdrBuffer, 0);
@@ -58,8 +64,7 @@ void shader_init_uniforms(shader_coloredRect & shader)
 void shader_init_uniforms(shader_depthPass & shader) 
 { 
     unsigned int pID = shader.shader.programID;
-    shader.uniformsIDS.model = glGetUniformLocation(pID, "model");
-    shader.uniformsIDS.lightSpace = glGetUniformLocation(pID, "lightSpaceMatrix");
+    shader.uniformsIDS.local2LightSpace = glGetUniformLocation(pID, "local2LightSpace");
 }
 
 void shader_init_uniforms(shader_fullscreenBlit & shader) {
@@ -114,18 +119,15 @@ void set_uniforms(shader_shadowed & shader, shadowed_uniforms & uniforms){
     set_float(shader.uniformIDS.sinTimeID, uniforms.sinTime);
 }
 
-void set_uniforms(shader_depthPass & shader, depth_Uniforms & uniforms){
-    set_mat4(shader.uniformsIDS.model,uniforms.model);
-    set_mat4(shader.uniformsIDS.lightSpace, uniforms.lightSpace);
+void set_uniforms(shader_depthPass & shader, depth_Uniforms & uniforms)
+{    
+    set_mat4(shader.uniformsIDS.local2LightSpace, uniforms.local2LightSpace);
 }
 
 void set_uniforms(shader_fullscreenBlit & shader, screen_blit_uniforms & uniforms)
 {
     set_texture(shader.uniformIDS.screenTexture, uniforms.screenTexture, 0);
 }
-
-
-
 
 void set_int(GLuint id, const int value) 
 { 

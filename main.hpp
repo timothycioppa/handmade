@@ -7,7 +7,6 @@
 #include "Graphics/GLMesh.hpp"
 #include "Graphics/GLTexture.hpp"
 #include "Graphics/GLTextRenderer.hpp"
-#include "Camera.hpp"
 #include "game_data.hpp"
 
 #define DEBUGQUAD 0

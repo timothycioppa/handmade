@@ -14,16 +14,37 @@ texrect_uniforms texRectUniforms;
 shader_shadowed standardShadowed;
 shadowed_uniforms shadowedUniforms;
 
+shader_render_lines standardLine;
+line_render_uniforms standardLineUniforms;
+
 std::map <GameFont, FontInfo> fontmap;
+
 void initFSQ(); // initialize mesh for full screen quad
+void initializeLineBuffers() ; // initialize mesh for line rendering
+
+#define MAX_LINES 100
+
+unsigned int lineVAO;
+unsigned int lineVBO;
+unsigned int colorVBO;
+
+glm::vec2 lineData[2 * MAX_LINES];
+glm::vec3 colorData[2 * MAX_LINES];
+bool inited = false;
+
+int _head = 0;
+int _linesToRender = 0;
+int _vertexCount = 0;
+
 
 void R_Init() 
 {
     COMPILE_SHADER("Shaders/coloredRect.vert", "Shaders/coloredRect.frag", coloredRect)
     COMPILE_SHADER("Shaders/texturedRect.vert", "Shaders/texturedRect.frag", texturedRect)
     COMPILE_SHADER("Shaders/standardShadow.vert", "Shaders/standardShadow.frag", standardShadowed)
+    COMPILE_SHADER("Shaders/lineRender.vert", "Shaders/lineRender.frag", standardLine)
     
-    // generate mesh for full screen quad
+    // generate mesh for full screen quad rendering
     initFSQ();
 
     // generate font data
@@ -34,23 +55,92 @@ void R_Init()
     fontmap.insert({ GameFont::Anton, FontInfo() });
     FontInfo & anton = fontmap[GameFont::Anton];
     InitializeFont( "C:\\Users\\josel\\code\\cpp\\handmade\\Fonts\\Anton.ttf", WINDOW_WIDTH, WINDOW_HEIGHT, &anton);
-
 }
 
 
 void R_Cleanup() 
 { 
+    RELEASE_SHADER(standardLine)
     RELEASE_SHADER(coloredRect)
     RELEASE_SHADER(texturedRect)
     RELEASE_SHADER(standardShadowed)
+
+    // delete FSQ gpu data
+    glDeleteBuffers(1, &quadVBO);
+    glDeleteVertexArrays(1, &quadVAO);
+
+    // delete line gpu data
+    if (inited) 
+    {
+        glDeleteVertexArrays(1, &lineVAO);
+        glDeleteBuffers(1, &lineVBO);
+        glDeleteBuffers(1, &colorVBO);
+    }
 }
+
+void R_DrawLine(glm::vec2 start, glm::vec2 end, glm::vec3 color) 
+{
+    if (_linesToRender == MAX_LINES) 
+    {
+        printf("max line rendering limit reached\n");
+        return;
+    }
+
+    lineData[_head] = start;
+    lineData[_head + 1] = end;
+
+    colorData[_head] = color;
+    colorData[_head + 1] = color;
+    
+    _linesToRender = _linesToRender + 1;
+    _vertexCount = _vertexCount + 2;
+    _head = _head + 2;
+}
+
+
+void R_DrawLines()
+{
+    if (!inited) 
+    {     
+        inited = true;
+        initializeLineBuffers();
+    }
+
+    if (_linesToRender < 1) 
+    {
+        return;
+    }
+
+    BIND_SHADER(standardLine);
+    glDisable(GL_DEPTH_TEST);
+     
+    glBindVertexArray(lineVAO);
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, lineVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, _vertexCount * sizeof(glm::vec2), &lineData[0]);     
+        glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, _vertexCount * sizeof(glm::vec3), &colorData[0]);         
+   
+        glDrawArrays(GL_LINES, 0, _vertexCount);
+    }
+
+    glBindVertexArray(0);
+    
+    unbind_shader();
+    glEnable(GL_DEPTH_TEST);
+
+    /// reset queue data
+    _head = 0;
+    _vertexCount = 0;
+    _linesToRender = 0;
+}
+
 
 void R_DrawText(std::string text, float x, float y, float scale, glm::vec3 color, GameFont font)
 { 
     FontInfo & fontInfo = fontmap[font];
-    DrawText(text, x, y, scale, color, &fontInfo);
+    DrawText(text, x, y, scale, color, &fontInfo);    
 }
-
 
 void R_RenderFullScreenQuad() 
 {
@@ -100,7 +190,26 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
     shadowedUniforms.sinTime = context.sinTime;
 
     glEnable(GL_CULL_FACE);
+
+    char lightBuff[64];
     
+    for (int i = 0; i < 3; i++) 
+    {
+        light l = scene.lights[i];
+
+        sprintf(lightBuff, "lights[%d].position", i);
+        unsigned int posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        set_float3(posID, l.Position);
+        
+        sprintf(lightBuff, "lights[%d].color", i);
+        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        set_float3(posID, l.Color);
+        
+        sprintf(lightBuff, "lights[%d].intensity", i);
+        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        set_float(posID, l.intensity);
+    }
+
     for (scene_object & so : scene.sceneObjects)
     {
         shadowedUniforms.diffuse = so.material.diffuse;
@@ -110,7 +219,6 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
         shadowedUniforms.model = so.transform.localToWorldMatrix();
         shadowedUniforms.modelView = context.v * shadowedUniforms.model;
         shadowedUniforms.modelViewProjection = context.p * shadowedUniforms.modelView;
-
         set_uniforms(standardShadowed, shadowedUniforms);
         render_mesh(so.mesh);
     }
@@ -119,7 +227,8 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
     glDisable(GL_CULL_FACE);
 }
 
-void initFSQ() { 
+void initFSQ() 
+{ 
     float quadVertices[] = 
     {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
@@ -137,4 +246,33 @@ void initFSQ() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+}
+
+
+void initializeLineBuffers() 
+{ 
+    _linesToRender = 0;
+    _vertexCount = 0;
+    _head = 0;
+
+    glGenVertexArrays(1, &lineVAO);
+
+    glBindVertexArray(lineVAO);
+    {
+        glGenBuffers(1, &lineVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, lineVBO);       
+        glBufferData(GL_ARRAY_BUFFER, MAX_LINES * 2 * sizeof(glm::vec2), &lineData[0], GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, (void*) 0);       
+        glEnableVertexAttribArray(0);
+        
+        glGenBuffers(1, &colorVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, colorVBO);       
+        glBufferData(GL_ARRAY_BUFFER, MAX_LINES * 2 * sizeof(glm::vec3), &colorData[0], GL_STATIC_DRAW);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*) 0);       
+        glEnableVertexAttribArray(1);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }    
+
+    glBindVertexArray(0);
 }

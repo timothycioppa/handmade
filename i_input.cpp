@@ -33,6 +33,7 @@ KeyCodes translate_key_code(int glfw_key)
         case GLFW_KEY_F: { return KeyCodes::KEY_F; } break;
         case GLFW_KEY_E: { return KeyCodes::KEY_E; } break;
         case GLFW_KEY_ESCAPE: { return KeyCodes::KEY_ESCAPE; } break;
+        case GLFW_KEY_SPACE : { return KeyCodes::KEY_SPACE; } break;
         default: { return KeyCodes::KEY_UNKNOWN; } break;
     }
 }

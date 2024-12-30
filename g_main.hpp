@@ -35,12 +35,14 @@ extern unsigned int colorBufferUniformID;
 extern TextureStore gTextureRepository;
 
 void G_Init();
-void G_RenderShadowDepth(scene_data & scene);
-void G_RenderToHDRColorBuffer( scene_data & scene);
-void G_RenderFinalFrame() ;
+void G_RenderShadowDepth(scene_data&);
+void G_RenderToHDRColorBuffer( scene_data&);
+void G_RenderFinalFrame();
 void G_StartFrame();
-void G_Cleanup();
-void G_RenderSceneShadowedFull(scene_data & scene);
+void G_RenderSceneShadowedFull(scene_data&);
+void G_RenderLevelEditor();
 void G_RenderOverlay();
+void G_Cleanup();
+void debug_line(glm::vec3, glm::vec3, glm::vec3, camera_data&);
 
 #endif

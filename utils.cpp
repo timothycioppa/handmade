@@ -94,10 +94,7 @@ char* readfile(const char* filename)
 }
 
 bool loadOBJ(const char* fileName, std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
-{
-
-	printf("opening %s\n", fileName);
-	
+{	
 	FILE* fp = fopen(fileName, "rb");
 	if (fp == NULL) 
 	{ 

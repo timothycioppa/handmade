@@ -14,9 +14,7 @@ void load_scene(const char* filename, scene_data & scene)
     while (true)
     { 
         stream >> key;
-        std::cout << key << std::endl;
         
-        std::cout << count << std::endl;
         if (stream.eof()) 
         { 
             break;
@@ -45,9 +43,62 @@ void load_scene(const char* filename, scene_data & scene)
             stream >> soKey >> l.frustrumHeight;
             scene.lights.push_back(l);
         }
+
+        if (key == "FLOOR") 
+        {
+            room_floor floor;
+            stream >> soKey >> floor.origin.x >> floor.origin.y >> floor.origin.z;
+            stream >> soKey >> floor.width >> floor.height;
+            scene.floor = floor; 
+        }
+
+        if (key == "CEILING") 
+        {
+            room_ceiling ceiling;
+            stream >> soKey >> ceiling.origin.x >> ceiling.origin.y >> ceiling.origin.z;
+            stream >> soKey >> ceiling.width >> ceiling.height;
+            scene.ceiling = ceiling; 
+        }
     } 
 
     stream.close();
+
+// initialize floor
+    scene_object floor_so;
+    floor_so.enabled = true;
+    floor_so.Name = "floor";
+    Transform & floorTransform = floor_so.transform;
+    floorTransform.position = scene.floor.origin;
+    floorTransform.scale = {scene.floor.width, 1.0f, scene.floor.height};
+    floorTransform.axis = {1,0,0};
+    floorTransform.rotation = glm::radians(-180.0f);
+    floorTransform.MarkDirty();
+
+    Material & mat = floor_so.material;
+    mat.mainTexture = gTextureRepository.GetTexture("Textures/uvtemplate.bmp");
+    mat.diffuse =  {1.0f, 1.0f, 1.0f};
+    mat.specular =  {1.0f, 1.0f, 1.0f};
+    mat.shininess =   1.0f;
+    scene.sceneObjects.push_back(floor_so);
+
+// initialize ceiling
+
+    scene_object ceiling_so;
+    ceiling_so.enabled = true;
+    ceiling_so.Name = "ceiling";
+    Transform & ceilingTransform = ceiling_so.transform;
+    ceilingTransform.position = scene.ceiling.origin;
+    ceilingTransform.scale = {scene.ceiling.width, 1.0f, scene.ceiling.height};
+    ceilingTransform.axis = {1,0,0};
+    ceilingTransform.rotation = glm::radians(0.0f);
+    ceilingTransform.MarkDirty();
+
+    Material & c_mat = ceiling_so.material;
+    c_mat.mainTexture = gTextureRepository.GetTexture("Textures/uvtemplate.bmp");
+    c_mat.diffuse =  {1.0f, 1.0f, 1.0f};
+    c_mat.specular =  {1.0f, 1.0f, 1.0f};
+    c_mat.shininess =   100.0f;
+    scene.sceneObjects.push_back(ceiling_so);
 
     for (room_wall wall : scene.room_walls) 
     { 

@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "main.hpp"
+#include "edtitor_main.hpp"
+
+#define WAIT_UNTIL(time) while (glfwGetTime() < time) {}
+
 
 int main(int argc, char** argv)
 {
@@ -11,20 +15,37 @@ int main(int argc, char** argv)
 		glfwTerminate();
 		return -1;
 	}
-	
+
+	Editor_Init(window);	
 	GAME_Initialize();
 
 	double lastUpdateTime = glfwGetTime();
 
+	float targetFrameTime = 1.0f / 40.0f;
+
 	while (gContext.gameRunning)
 	{
-		float preTickTime = glfwGetTime();
+		Editor_BeginFrame();
+
+		double preTickTime = glfwGetTime();
 		GAME_ProcessFrame(gContext);	
 		double postTickTime = glfwGetTime();
-
 		GAME_PostProcessFrame(gContext, float(postTickTime - lastUpdateTime));	
 		lastUpdateTime = postTickTime;		
-	
+
+		Editor_RenderFrame(gContext);
+		Editor_EndFrame();
+
+		// target FPS enforcement
+		double frameDuration = glfwGetTime() - preTickTime;
+		if (frameDuration < targetFrameTime) 
+		{
+			double remaining = targetFrameTime - frameDuration;
+			double targetTime = glfwGetTime() + remaining;
+			WAIT_UNTIL(targetTime)
+		}
+
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 
@@ -34,6 +55,7 @@ int main(int argc, char** argv)
 		}
 	} 
 
+	Editor_Shutdown();
 	GAME_Cleanup() ;
 	glfwDestroyWindow(window);
 	glfwTerminate();

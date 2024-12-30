@@ -4,12 +4,12 @@
 #include "platform_common.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 
-class Transform { 
+class Transform 
+{
 	private :
 		glm::mat4 localToWorld;
 		bool dirty;
 
-		
 	public:
 		glm::vec3 position;
 		glm::vec3 scale;
@@ -25,7 +25,8 @@ class Transform {
 			localToWorld = localToWorldMatrix();
 		}
 		
-		Transform() { 
+		Transform()  
+		{ 
 			init(glm::vec3(0.0f), glm::vec3(1.0f), 0.0f, glm::vec3(1.0f, 0.0f, 0.0f));
 		}
 
@@ -64,7 +65,8 @@ class Transform {
 			dirty = true;
 		}
 
-		void MarkDirty() { 
+		void MarkDirty() 
+		{ 
 			dirty = true;
 		}
 

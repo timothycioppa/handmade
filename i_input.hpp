@@ -2,6 +2,7 @@
 #define _I_INPUT_HPP
 #include "platform_common.hpp"
 
+
 enum KeyCodes 
 { 
     KEY_S = 0, 
@@ -9,7 +10,18 @@ enum KeyCodes
     KEY_F = 2, 
     KEY_E = 3, 
     KEY_ESCAPE = 4, 
-    KEY_UNKNOWN = 5
+    KEY_UNKNOWN = 5,
+    KEY_SPACE = 6
+};
+
+#define NUM_KEY_CODES 7
+
+struct key_state 
+{ 
+    KeyCodes key;
+    bool pressed;
+    bool down;
+    bool released;
 };
 
 enum MouseButtons
@@ -18,6 +30,14 @@ enum MouseButtons
     M_MIDDLE = 1, 
     M_RIGHT = 2, 
     MOUSE_BUTTON_UNKNOWN = 3
+};
+
+struct mouse_button_state 
+{ 
+    MouseButtons button;
+    bool pressed;
+    bool down;
+    bool released;
 };
 
 enum ButtonActions 

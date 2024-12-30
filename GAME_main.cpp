@@ -1,4 +1,5 @@
 #include "GAME_main.hpp"
+#include "GameStates/LevelEditor.hpp"
 
 #define MOUSE_MOVE_THRESHOLD 0.001f
 
@@ -6,7 +7,6 @@ void process_keyboard_event(system_event * evt, game_context & context) ;
 void process_mouse_button_event(system_event * evt, game_context & context) ;
 void process_mouse_move(system_event * evt, game_context & context) ;
 
-game_context gContext;
 glm::vec2 mousePos;
 glm::vec2 mouseDelta;
 
@@ -21,13 +21,20 @@ void GAME_Initialize()
 	gContext.sinTime = (float) sin(gContext.applicationTime);
 	gContext.cosTime = (float) cos(gContext.applicationTime);
 
-	register_game_state(GameState::MAIN,  &gMainState);
+    for (int i = 0; i < NUM_KEY_CODES; i++) 
+    { 
+        key_state & state = gContext.key_states[i];
+        state.pressed = false;
+        state.down = false;
+        state.released = false;
+    }
 
-	gCurrentGameState = &gMainState;
-	gCurrentGameState->isRunning = true;
-	gCurrentGameState->Init(gContext);
+	register_game_state(GameState::GAMEPLAY,  &gStateGameplay);
+	register_game_state(GameState::LEVEL_EDITOR,  &gStateLevelEditor);
+    set_initial_state(GameState::LEVEL_EDITOR);
 }
 
+// a single frame tick of the game
 void GAME_ProcessFrame(game_context & context) 
 { 
     // handle all queued events
@@ -38,17 +45,11 @@ void GAME_ProcessFrame(game_context & context)
 		GAME_ProcessEvent(evt, context);
 	}	
 		
-    // run the game state machine
-	if (!(gCurrentGameState->isRunning))
-	{ 
-		gCurrentGameState->Destroy(context);
-    	gCurrentGameState = StateMap[gCurrentGameState->nextState];		
-        gCurrentGameState->Init(context);
-		gCurrentGameState->isRunning = true;
-	}
+    check_for_state_change(context);
     
 	gCurrentGameState->Update(context);	
     gCurrentGameState->Render(context);
+    gCurrentGameState->Editor(context);
 }
 
 void GAME_ProcessEvent(system_event * evt, game_context & context) 
@@ -90,34 +91,27 @@ void GAME_Cleanup()
 	R_Cleanup();
 }
 
-/* helper functions */
 void process_keyboard_event(system_event * evt, game_context & context) 
 { 
 	KeyCodes key = KeyCodes (evt->arg1);			
     ButtonActions action = ButtonActions(evt->arg2);
     InputModifiers mod = InputModifiers(evt->arg3);
-
-    if (action == ButtonActions::A_PRESSED) 
+   
+    for (int i = 0; i < NUM_KEY_CODES; i++) 
     { 
-        switch(key) 
-        { 
-            case KeyCodes::KEY_S: { context.left = true;} break;
-            case KeyCodes::KEY_D: { context.back = true;} break;
-            case KeyCodes::KEY_F: { context.right = true;} break;
-            case KeyCodes::KEY_E: { context.forward = true;} break;
-        }		
+        context.key_states[i].pressed = false;
+        context.key_states[i].released = false;
     }
 
-    if (action == ButtonActions::A_RELEASED) 
-    { 
-        switch(key) 
-        { 
-            case KeyCodes::KEY_S: { context.left = false;} break;
-            case KeyCodes::KEY_D: { context.back = false;} break;
-            case KeyCodes::KEY_F: { context.right = false;} break;
-            case KeyCodes::KEY_E: { context.forward = false;} break;
-            case KeyCodes::KEY_ESCAPE: { context.gameRunning = false; } break;
-        }		
+    if (key != KeyCodes::KEY_UNKNOWN) 
+    {
+       key_state & state = context.key_states[int(key)];
+        
+       switch (action) 
+       { 
+          case ButtonActions::A_PRESSED:  { state.pressed = true; state.down = true; } break;
+          case ButtonActions::A_RELEASED: { state.released = true; state.down = false;} break;
+       }
     }
 }
 
@@ -127,17 +121,32 @@ void process_mouse_button_event(system_event * evt, game_context & context)
     ButtonActions action = ButtonActions(evt->arg2);
     InputModifiers mod = InputModifiers(evt->arg3);
 
-    if (button == MouseButtons::M_RIGHT) 
-    { 
-        if (action == ButtonActions::A_PRESSED) 
+    context.left.pressed = false;
+    context.right.pressed = false;
+    context.middle.pressed = false;
+    context.left.released = false;
+    context.right.released = false;
+    context.middle.released = false;
+
+    switch (button) {
+        case MouseButtons::M_LEFT: 
         { 
-            context.rightMouseHeld = true;
-        }	
-        if (action == ButtonActions::A_RELEASED) 
+            if (action == ButtonActions::A_PRESSED) { gContext.left.pressed = true; gContext.left.down = true;  } 
+            if (action == ButtonActions::A_RELEASED) { gContext.left.released = true; gContext.left.down = false; } break;   
+        }break;
+
+        case MouseButtons::M_MIDDLE: 
         { 
-            context.rightMouseHeld = false;
-        }		
-    }
+            if (action == ButtonActions::A_PRESSED) { gContext.middle.pressed = true; gContext.middle.down = true;  } 
+            if (action == ButtonActions::A_RELEASED) { gContext.middle.released = true; gContext.middle.down = false; } break;   
+        }break;
+
+          case MouseButtons::M_RIGHT: 
+        { 
+            if (action == ButtonActions::A_PRESSED) { gContext.right.pressed = true; gContext.right.down = true;  } 
+            if (action == ButtonActions::A_RELEASED) { gContext.right.released = true; gContext.right.down = false; } break;   
+        }break;
+    } 
 }
 
 void process_mouse_move(system_event * evt, game_context & context) 

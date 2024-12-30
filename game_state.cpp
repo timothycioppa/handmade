@@ -13,3 +13,25 @@ void request_state_change(GameState newState)
     gCurrentGameState->isRunning = false;
     gCurrentGameState->nextState = newState;
 }
+
+void set_initial_state(GameState state) 
+{ 
+    gCurrentGameState = StateMap[state];
+	gCurrentGameState->isRunning = true;
+	gCurrentGameState->Init(gContext);
+}
+
+void check_for_state_change(game_context & context)
+{
+	if (!(gCurrentGameState->isRunning))
+	{ 
+		gCurrentGameState->Destroy(context);
+    	gCurrentGameState = StateMap[gCurrentGameState->nextState];	
+
+        if(gCurrentGameState != nullptr) 
+        {
+            gCurrentGameState->Init(context);
+            gCurrentGameState->isRunning = true;
+        }	
+	}
+}

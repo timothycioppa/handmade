@@ -1,4 +1,5 @@
 #include "edtitor_main.hpp"
+#include <stdio.h>
 
 void Editor_Init(GLFWwindow* window) 
 { 
@@ -18,12 +19,14 @@ void Editor_BeginFrame()
     ImGui::NewFrame();
 }
 
-void Editor_RenderFrame() 
-{ 
 
+void Editor_RenderFrame(game_context & context) 
+{ 	
+	
 }
 
-void Editor_EndFrame() { 
+void Editor_EndFrame() 
+{ 
     ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }

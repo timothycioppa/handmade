@@ -18,6 +18,20 @@ struct room_wall
     float height;
 };
 
+struct room_floor 
+{ 
+    glm::vec3 origin;
+    float width;
+    float height;
+};
+
+struct room_ceiling 
+{ 
+    glm::vec3 origin;
+    float width;
+    float height;
+};
+
 WallSide getWallSide(glm::vec3 point, room_wall wall);
 float sqrMag(const glm::vec2 & v);
 float sqrMag(const glm::vec3 & v);
