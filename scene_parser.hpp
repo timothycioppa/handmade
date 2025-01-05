@@ -8,6 +8,7 @@
 #include <iostream>
 #include "scene_object.hpp"
 #include "light.hpp"
+#include "bsp.hpp"
 
 struct scene_data 
 { 
@@ -19,6 +20,7 @@ struct scene_data
   
 };
 
-void load_scene(const char* filename, scene_data & scene);
+void load_scene(const char* filename, bsp_tree & tree) ;
+//void load_scene(const char* filename, scene_data & scene);
 
 #endif

@@ -1,5 +1,6 @@
 #include "r_main.hpp"
 #include "scene_object.hpp"
+#include "bsp.hpp"
 #include <map>
 
 unsigned int quadVAO;
@@ -19,6 +20,8 @@ line_render_uniforms standardLineUniforms;
 
 std::map <GameFont, FontInfo> fontmap;
 
+static_mesh quad;
+
 void initFSQ(); // initialize mesh for full screen quad
 void initializeLineBuffers() ; // initialize mesh for line rendering
 
@@ -36,7 +39,6 @@ int _head = 0;
 int _linesToRender = 0;
 int _vertexCount = 0;
 
-
 void R_Init() 
 {
     COMPILE_SHADER("Shaders/coloredRect.vert", "Shaders/coloredRect.frag", coloredRect)
@@ -44,6 +46,8 @@ void R_Init()
     COMPILE_SHADER("Shaders/standardShadow.vert", "Shaders/standardShadow.frag", standardShadowed)
     COMPILE_SHADER("Shaders/lineRender.vert", "Shaders/lineRender.frag", standardLine)
     
+    load_mesh("Models/wall.obj", quad);
+
     // generate mesh for full screen quad rendering
     initFSQ();
 
@@ -64,6 +68,8 @@ void R_Cleanup()
     RELEASE_SHADER(coloredRect)
     RELEASE_SHADER(texturedRect)
     RELEASE_SHADER(standardShadowed)
+
+    release_mesh(quad);
 
     // delete FSQ gpu data
     glDeleteBuffers(1, &quadVBO);
@@ -173,7 +179,52 @@ void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture)
     unbind_shader();
 }
 
-void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
+void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_tree & tree)
+{    
+    NodeType nodeType = renderData.indexData.Type;
+    bool highlight = IS_HIGHLIGHTED(renderData);
+    float scale = highlight ? 100.0f : 1.0f;
+
+    shadowedUniforms.diffuse =      scale * renderData.material.diffuse; 
+    shadowedUniforms.specular =     scale * renderData.material.specular; 
+    shadowedUniforms.shininess =    scale * renderData.material.shininess; 
+    shadowedUniforms.mainTex =      renderData.material.mainTexture->textureID; 
+    shadowedUniforms.model =        renderData.transform.localToWorldMatrix(); 
+    shadowedUniforms.modelView =    context.v * shadowedUniforms.model; 
+    shadowedUniforms.modelViewProjection = context.p * shadowedUniforms.modelView; 
+  
+    set_uniforms(standardShadowed, shadowedUniforms); 
+    render_mesh(quad); 
+}
+
+void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext & context) 
+{
+    if (node->front != nullptr) 
+    {
+        render_shadowed_recursive(node->front, tree, context);
+    }
+
+    if (node->back != nullptr) 
+    {
+        render_shadowed_recursive(node->back, tree, context);
+    }
+
+    renderable_index indices = get_render_indices(node, tree);
+
+    if (indices.renderableIndex0 > -1) 
+    {
+        node_render_data & renderData = tree.renderables[indices.renderableIndex0];         
+        SHADOW_RENDER(renderData, context, tree);
+    }
+
+    if (indices.renderableIndex1 > -1) 
+    {  
+        node_render_data & renderData = tree.renderables[indices.renderableIndex1];   
+        SHADOW_RENDER(renderData, context, tree);
+    }    
+}
+
+void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
 {
     BIND_SHADER(standardShadowed)
 
@@ -193,9 +244,9 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
 
     char lightBuff[64];
     
-    for (int i = 0; i < 3; i++) 
+    for (int i = 0; i < scene.lightCount; i++) 
     {
-        light l = scene.lights[i];
+        light & l = scene.lights[i];
 
         sprintf(lightBuff, "lights[%d].position", i);
         unsigned int posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
@@ -210,25 +261,16 @@ void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context)
         set_float(posID, l.intensity);
     }
 
-    for (scene_object & so : scene.sceneObjects)
-    {
-        shadowedUniforms.diffuse = so.material.diffuse;
-        shadowedUniforms.specular = so.material.specular;
-        shadowedUniforms.shininess = so.material.shininess;
-        shadowedUniforms.mainTex = so.material.mainTexture->textureID;
-        shadowedUniforms.model = so.transform.localToWorldMatrix();
-        shadowedUniforms.modelView = context.v * shadowedUniforms.model;
-        shadowedUniforms.modelViewProjection = context.p * shadowedUniforms.modelView;
-        set_uniforms(standardShadowed, shadowedUniforms);
-        render_mesh(so.mesh);
-    }
-
+    render_shadowed_recursive(scene.root, scene, context);
     unbind_shader(); 
     glDisable(GL_CULL_FACE);
+
 }
+
 
 void initFSQ() 
 { 
+
     float quadVertices[] = 
     {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
@@ -246,8 +288,8 @@ void initFSQ()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-}
 
+}
 
 void initializeLineBuffers() 
 { 

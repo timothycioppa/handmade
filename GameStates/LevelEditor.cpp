@@ -23,6 +23,11 @@ void LevelEditor_Render(game_context & context)
     G_RenderLevelEditor();
 }
 
+void LevelEditor_PostRender(game_context & context) 
+{
+
+}
+
 void LevelEditor_Editor(game_context & context) 
 {}
 
@@ -34,6 +39,7 @@ game_state gStateLevelEditor =
     LevelEditor_Init,
     LevelEditor_Update,
     LevelEditor_Render,
+    LevelEditor_PostRender,
     LevelEditor_Editor,
     LevelEditor_Destroy,
     false, 

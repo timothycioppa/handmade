@@ -20,6 +20,9 @@ void GAME_Initialize()
 	gContext.applicationTime = 0.0f;
 	gContext.sinTime = (float) sin(gContext.applicationTime);
 	gContext.cosTime = (float) cos(gContext.applicationTime);
+    gContext.windowWidth = WINDOW_WIDTH;
+    gContext.windowHeight = WINDOW_HEIGHT;
+    
 
     for (int i = 0; i < NUM_KEY_CODES; i++) 
     { 
@@ -31,7 +34,7 @@ void GAME_Initialize()
 
 	register_game_state(GameState::GAMEPLAY,  &gStateGameplay);
 	register_game_state(GameState::LEVEL_EDITOR,  &gStateLevelEditor);
-    set_initial_state(GameState::LEVEL_EDITOR);
+    set_initial_state(GameState::GAMEPLAY);
 }
 
 // a single frame tick of the game
@@ -49,7 +52,11 @@ void GAME_ProcessFrame(game_context & context)
     
 	gCurrentGameState->Update(context);	
     gCurrentGameState->Render(context);
-    gCurrentGameState->Editor(context);
+    gCurrentGameState->PostRender(context);
+
+    #ifdef EDITOR_DEBUG
+        gCurrentGameState->Editor(context);
+    #endif
 }
 
 void GAME_ProcessEvent(system_event * evt, game_context & context) 

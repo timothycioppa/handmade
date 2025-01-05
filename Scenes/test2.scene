@@ -1,8 +1,22 @@
+sectors
+count 2 
+floor 0 ceiling 25 center 0 20 dimensions 40 40 wall 0 1 2 3
+floor 3 ceiling 20 center 0 -20 dimensions 40 40 wall 5 4 0 6
 
-FLOOR o 0 0 0   d 50 50
-CEILING o 0 20 0   d 50 50
+segments
+count 7
+s 20 0 e -20 0 f 0 b 1
+s -20 0 e -20 40 f 0 b -1 
+s -20 40 e 20 40 f 0 b -1
+s 20 40 e 20 0 f 0 b -1
+s -20 -40 e -20 0 f 1 b -1
+s 20 -40 e -20 -40 f 1 b -1
+s 20 0 e 20 -40 f 1 b -1
 
-LIGHT 
+lights
+count 3
+
+light 
     col 1 0 0
     int .1
     pos -20 0 0
@@ -13,7 +27,7 @@ LIGHT
     fwidth 20
     fheight 20
 
-LIGHT 
+light 
     col 1 0 0
     int .1
     pos 20 0 0
@@ -24,7 +38,7 @@ LIGHT
     fwidth 20
     fheight 20
 
-LIGHT 
+light 
     col 0 0 1
     int .5
     pos 0 20 0

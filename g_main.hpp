@@ -6,6 +6,7 @@
 #include "scene_object.hpp"
 #include "TextureStore.hpp"
 #include "scene_parser.hpp"
+#include "bsp.hpp"
 
 struct LightData 
 {
@@ -35,14 +36,21 @@ extern unsigned int colorBufferUniformID;
 extern TextureStore gTextureRepository;
 
 void G_Init();
-void G_RenderShadowDepth(scene_data&);
-void G_RenderToHDRColorBuffer( scene_data&);
+// void G_RenderShadowDepth(scene_data&);
+// void G_RenderToHDRColorBuffer( scene_data&);
+// void G_RenderSceneShadowedFull(scene_data&);
+
 void G_RenderFinalFrame();
 void G_StartFrame();
-void G_RenderSceneShadowedFull(scene_data&);
+
+void G_RenderShadowDepth(bsp_tree&);
+void G_RenderToHDRColorBuffer(bsp_tree&);
+void G_RenderSceneShadowedFull(bsp_tree&);
+
 void G_RenderLevelEditor();
 void G_RenderOverlay();
 void G_Cleanup();
 void debug_line(glm::vec3, glm::vec3, glm::vec3, camera_data&);
+void ValidateTextures(bsp_tree & tree) ;
 
 #endif

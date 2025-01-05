@@ -7,7 +7,7 @@
 #include "math_utils.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "include/stb_image.h"
-
+#include "include/glm/gtc/type_ptr.hpp"
 #include "editor_controller.hpp"
 
 float lightStrength = 0.5f;
@@ -23,6 +23,9 @@ FrameBufferInfo hdrColorBufferFB;
 LightData lightData;
 TextureStore gTextureRepository;
 
+// used for rendering walls and ceilings (since everything is a quad)
+static_mesh quadMesh;
+
 bool useHDR = true;
 float exposure = 1.0f;
 
@@ -35,6 +38,8 @@ void G_Init()
     COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", shadowDepthPass)
     COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
 
+    
+    load_mesh("Models/wall.obj", quadMesh);
     GenerateHDRColorBuffer();
     GenerateShadowDepthBuffer();
     GenerateLightData();
@@ -48,6 +53,7 @@ void G_Cleanup()
 { 
     RELEASE_SHADER(shadowDepthPass)
     RELEASE_SHADER(fullScreenHDRBlit);
+    release_mesh(quadMesh);
 
 	for (auto & [key, value] : gTextureRepository.TextureMap ) 
 	{ 
@@ -116,6 +122,17 @@ void GenerateShadowDepthBuffer()
 	glBindFramebuffer(GL_FRAMEBUFFER, 0); 
 }
 
+void ValidateTextures(bsp_tree & tree) 
+{
+    // set default texture if none is set
+    for (int i = 0; i < tree.numRenderables; i++) {
+       if (tree.renderables[i].material.mainTexture == nullptr)
+       {
+            tree.renderables[i].material.mainTexture = gTextureRepository.GetTexture("Textures/freImage1.jpeg");
+       } 
+    }
+}
+
 void GenerateLightData() 
 {
     lightData.near = 0.01f;
@@ -126,25 +143,57 @@ void GenerateLightData()
     glm::vec3 center = glm::vec3(5.0f , 5.0f, 5.0f);
 	lightData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), center, glm::vec3(0.0, 1.0, 0.0));
 	lightData.lightSpaceMatrix = (lightData.projection) * (lightData.view);
+ }
+
+void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
+{
+    if (node->back != nullptr) 
+    {
+        render_shadow_depth_recursive(node->back, tree);
+    }
+
+    if (node->front != nullptr) 
+    {
+        render_shadow_depth_recursive(node->front, tree);
+    }
+
+    renderable_index indices = get_render_indices(node, tree);
+
+    if (indices.renderableIndex0 > -1)
+    {
+
+
+        glm::mat4 local2LightSpace = 
+            tree.lights[0].lightSpace * tree.renderables[indices.renderableIndex0].transform.localToWorldMatrix();             
+
+
+        glUniformMatrix4fv(shadowDepthPass.uniformsIDS.local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
+
+
+        render_mesh(quadMesh);
+    }
+
+    if (indices.renderableIndex1 > -1)
+    {
+        glm::mat4 local2LightSpace = 
+            tree.lights[0].lightSpace  * tree.renderables[indices.renderableIndex1].transform.localToWorldMatrix();                        
+
+        glUniformMatrix4fv(shadowDepthPass.uniformsIDS.local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
+        render_mesh(quadMesh);
+    }
 }
 
-void G_RenderShadowDepth(scene_data & scene) 
+void G_RenderShadowDepth(bsp_tree & scene) 
 { 
     BIND_SHADER(shadowDepthPass)   
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowDepthMapFB.fbo);
     glClear(GL_DEPTH_BUFFER_BIT);	                
-
-    for (scene_object & so : scene.sceneObjects)
-    {      
-        shadowDepthUniforms.local2LightSpace = lightData.lightSpaceMatrix * so.transform.localToWorldMatrix();
-        set_uniforms(shadowDepthPass, shadowDepthUniforms);
-        render_mesh(so.mesh);
-    }  
-   
+    render_shadow_depth_recursive(scene.root, scene);
     unbind_shader();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
+
 
 void G_StartFrame() 
 { 
@@ -152,9 +201,10 @@ void G_StartFrame()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void G_RenderToHDRColorBuffer(scene_data & scene) 
+void G_RenderToHDRColorBuffer(bsp_tree & scene) 
 { 
     static RenderContext context;
+
     context.shadowMapID = shadowDepthMapFB.texture;
     context.cameraPosition = main_player.Position;
     context.lightSpace = lightData.lightSpaceMatrix;
@@ -165,6 +215,7 @@ void G_RenderToHDRColorBuffer(scene_data & scene)
     context.deltaTime = gContext.deltaTime;
     context.sinTime = gContext.sinTime;
     context.cosTime = gContext.cosTime;
+
     context.v = main_player.camData.view;
     context.p = main_player.camData.projection;
 
@@ -176,9 +227,14 @@ void G_RenderToHDRColorBuffer(scene_data & scene)
     R_RenderMeshStandardShadowed(scene, context); 
 }
 
+
 void G_RenderFinalFrame() 
 {
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    float width = gContext.windowWidth;
+    float height = gContext.windowHeight; 
+
+    glViewport(0, 0, width , height );
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
@@ -189,7 +245,8 @@ void G_RenderFinalFrame()
     hdrBlitUniforms.exposure = 1.0;
     set_uniforms(fullScreenHDRBlit, hdrBlitUniforms);
     R_RenderFullScreenQuad();
-    
+
+
     unbind_shader();
 }
 
@@ -207,15 +264,24 @@ void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data 
     R_DrawLine(glm::vec2(ss.x, ss.y ), glm::vec2(ee.x , ee.y), color); 
 }
 
-void G_RenderSceneShadowedFull(scene_data & scene) 
-{  
+
+
+void G_RenderSceneShadowedFull(bsp_tree & scene) 
+{
 	G_StartFrame();
     G_RenderShadowDepth(scene);	
+    
     G_RenderToHDRColorBuffer(scene);
+    
     G_RenderOverlay();
-    R_DrawLines();  
+    
+    R_DrawLines();
+    
     G_RenderFinalFrame();
+
 }
+
+
 
 void G_RenderOverlay() 
 { 

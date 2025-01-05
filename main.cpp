@@ -3,8 +3,9 @@
 #include "main.hpp"
 #include "edtitor_main.hpp"
 
+#define TARGET_FPS 90.0f
+#define LIMIT_FRAMERATE 0
 #define WAIT_UNTIL(time) while (glfwGetTime() < time) {}
-
 
 int main(int argc, char** argv)
 {
@@ -16,34 +17,47 @@ int main(int argc, char** argv)
 		return -1;
 	}
 
-	Editor_Init(window);	
+	#ifdef EDITOR_DEBUG
+		Editor_Init(window);
+	#endif	
+
 	GAME_Initialize();
 
 	double lastUpdateTime = glfwGetTime();
 
-	float targetFrameTime = 1.0f / 40.0f;
+	#if LIMIT_FRAMERATE == 1
+		float targetFrameTime = 1.0f / TARGET_FPS;
+	#endif
 
 	while (gContext.gameRunning)
 	{
-		Editor_BeginFrame();
+
+		#ifdef EDITOR_DEBUG
+				Editor_BeginFrame();
+		#endif
 
 		double preTickTime = glfwGetTime();
 		GAME_ProcessFrame(gContext);	
 		double postTickTime = glfwGetTime();
+
 		GAME_PostProcessFrame(gContext, float(postTickTime - lastUpdateTime));	
+		
 		lastUpdateTime = postTickTime;		
 
-		Editor_RenderFrame(gContext);
-		Editor_EndFrame();
+		#ifdef EDITOR_DEBUG	
+				Editor_RenderFrame(gContext);
+				Editor_EndFrame();
+		#endif
 
-		// target FPS enforcement
-		double frameDuration = glfwGetTime() - preTickTime;
-		if (frameDuration < targetFrameTime) 
-		{
-			double remaining = targetFrameTime - frameDuration;
-			double targetTime = glfwGetTime() + remaining;
-			WAIT_UNTIL(targetTime)
-		}
+		#if LIMIT_FRAMERATE == 1
+				double frameDuration = glfwGetTime() - preTickTime;
+				if (frameDuration < targetFrameTime) 
+				{
+					double remaining = targetFrameTime - frameDuration;
+					double targetTime = glfwGetTime() + remaining;
+					WAIT_UNTIL(targetTime)
+				}
+		#endif
 
 
 		glfwSwapBuffers(window);
@@ -54,8 +68,11 @@ int main(int argc, char** argv)
 			gContext.gameRunning = false;
 		}
 	} 
-
-	Editor_Shutdown();
+	
+	#ifdef EDITOR_DEBUG
+		Editor_Shutdown();
+	#endif
+	
 	GAME_Cleanup() ;
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -125,6 +142,9 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+	gContext.windowWidth = width;
+	gContext.windowHeight = height;
+	
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);

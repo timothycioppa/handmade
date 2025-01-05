@@ -16,8 +16,12 @@ struct player_data
     float Pitch;
     float MovementSpeed;
     float LookSpeed;
+
     bool Jumping;
     float JumpTimer;
+
+    bool Falling;
+    float FallTimer;
 
     camera_data camData;
 };

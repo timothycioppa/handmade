@@ -81,7 +81,8 @@ void main()
     vec3 viewDir = normalize(unity_CameraPosition - fs_in.FragPos);
     vec3 result = vec3(0,0,0);
 
-    for (int i = 0; i < 3; i++) 
+    int i = 0;
+    //for (int i = 0; i < 1; i++) 
     { 
         vec3 dLight = lights[i].position - fs_in.FragPos;
         float invSqDist = 1.0f / (dLight.x * dLight.x + dLight.y * dLight.y + dLight.z * dLight.z);
@@ -97,6 +98,7 @@ void main()
 
     float minShadow = 0.2f;
     float remappedShadow = minShadow + (1.0f - minShadow) * (1.0f - shadowValue);
-    vec3 finalColor = (remappedShadow * (lightAmbient + result)) * texCol;
+    vec3 finalColor = (remappedShadow * (lightAmbient + result)) * texCol * material.diffuse;
+
     FragColor = vec4(finalColor, 1.0);
 }

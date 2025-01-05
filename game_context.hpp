@@ -19,6 +19,9 @@ struct game_context
 	float sinTime;
 	float cosTime;
 	bool gameRunning;
+
+	float windowWidth;
+	float windowHeight;
 };
 
 extern game_context gContext;
@@ -30,7 +33,5 @@ bool key_released(KeyCodes);
 bool mouse_button_pressed(MouseButtons);
 bool mouse_button_held(MouseButtons);
 bool mouse_button_released(MouseButtons);
-
-
 
 #endif

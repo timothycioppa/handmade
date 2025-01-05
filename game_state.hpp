@@ -19,6 +19,7 @@ struct game_state
 	GameStateFuntion Init;
 	GameStateFuntion Update;
 	GameStateFuntion Render;
+	GameStateFuntion PostRender;
 	GameStateFuntion Editor;
 	GameStateFuntion Destroy;
 	bool isRunning;

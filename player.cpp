@@ -18,7 +18,9 @@ void update_view_matrix(player_data* player)
     player->Forward = glm::normalize(front);
     player->Right = glm::normalize(glm::cross(player->Forward, player->WorldUp));  
     player->Up    = glm::normalize(glm::cross(player->Right, player->Forward));
-    player->camData.view = glm::lookAt(player->Position, player->Position + player->Forward, player->Up);
+
+    player->camData.view = glm::lookAt(player->Position, player->Position + player->Forward, {0,1,0});
+        
 }
 
 void Player_Init(game_context * context) 
@@ -27,8 +29,8 @@ void Player_Init(game_context * context)
     main_player.Yaw = 0.0f;
     main_player.MovementSpeed = 15.0f;
     main_player.LookSpeed = 200.0f;
-    main_player.Position = {0.0f, 2.0f, 0.0f};
-    main_player.WorldUp = {0.0f, 1.0f, 0.0f};
+    main_player.Position = {0,2,0};
+    main_player.WorldUp = {0,1,0};
     main_player.Jumping = false;
     main_player.camData.projection = glm::perspective(glm::radians(45.0f), (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT, 0.1f, 100.0f);
     update_view_matrix(&main_player);
@@ -98,8 +100,9 @@ void Player_UpdatePosition( game_context * context)
 { 
     if (sqrMag(main_player.MoveDir) > 0.1f) 
     { 
-        float velocity = main_player.MovementSpeed * (context->deltaTime);
-        main_player.Position += velocity * main_player.MoveDir;
-        main_player.camData.view = glm::lookAt(main_player.Position, main_player.Position + main_player.Forward, main_player.Up);
+            float velocity = main_player.MovementSpeed * (context->deltaTime);
+            main_player.Position += velocity * main_player.MoveDir;
+            main_player.camData.view = glm::lookAt(main_player.Position,main_player.Position + main_player.Forward, {0,1,0});
+
     } 
 }
