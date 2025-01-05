@@ -181,9 +181,15 @@ void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture)
 
 void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_tree & tree)
 {    
-    NodeType nodeType = renderData.indexData.Type;
+    if (renderData.rendered)
+    {
+        return;
+    }
+
+
+    renderData.rendered = true;
     bool highlight = IS_HIGHLIGHTED(renderData);
-    float scale = highlight ? 100.0f : 1.0f;
+    float scale = highlight ? 10.0f : 1.0f;
 
     shadowedUniforms.diffuse =      scale * renderData.material.diffuse; 
     shadowedUniforms.specular =     scale * renderData.material.specular; 
@@ -197,20 +203,8 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
     render_mesh(quad); 
 }
 
-void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext & context) 
-{
-    if (node->front != nullptr) 
-    {
-        render_shadowed_recursive(node->front, tree, context);
-    }
-
-    if (node->back != nullptr) 
-    {
-        render_shadowed_recursive(node->back, tree, context);
-    }
-
-    renderable_index indices = get_render_indices(node, tree);
-
+void doRender(const renderable_index & indices, bsp_tree & tree, RenderContext & context) 
+{ 
     if (indices.renderableIndex0 > -1) 
     {
         node_render_data & renderData = tree.renderables[indices.renderableIndex0];         
@@ -224,10 +218,57 @@ void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext &
     }    
 }
 
+void renderAdjacentSectors(const wall_segment & segment, bsp_tree & tree, RenderContext & context) 
+{         
+    int frontSector = segment.frontSectorID;
+
+    if (segment.frontSectorID > -1)
+    {
+        sector & s = tree.sectors[frontSector];
+        renderable_index & indices = s.renderIndices;
+        doRender(indices, tree, context);
+    }
+
+    int backSector = segment.backSectorID;
+
+    if (segment.backSectorID > -1)
+    {
+        sector & s = tree.sectors[backSector];
+        renderable_index & indices = s.renderIndices;
+        doRender(indices, tree, context);
+    }
+
+}
+
+void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext & context) 
+{
+    if (node->front != nullptr) 
+    {
+        render_shadowed_recursive(node->front, tree, context);
+    } 
+    else
+    {
+        renderAdjacentSectors(tree.segments[node->segmentIndex], tree, context);
+    }
+
+    if (node->back != nullptr) 
+    {
+        render_shadowed_recursive(node->back, tree, context);
+    }
+    else
+    {
+        renderAdjacentSectors(tree.segments[node->segmentIndex], tree, context);
+    }
+
+    renderable_index & indices = tree.segments[node->segmentIndex].renderIndices;
+    doRender(indices, tree, context);    
+}
+
 void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
 {
     BIND_SHADER(standardShadowed)
 
+    shadowedUniforms.cameraForward = context.cameraForward;
     shadowedUniforms.shadowMap = context.shadowMapID;
     shadowedUniforms.view = context.v;
     shadowedUniforms.lightSpace = context.lightSpace;
@@ -240,7 +281,7 @@ void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
     shadowedUniforms.cosTime = context.cosTime;
     shadowedUniforms.sinTime = context.sinTime;
 
-    glEnable(GL_CULL_FACE);
+  //  glEnable(GL_CULL_FACE);
 
     char lightBuff[64];
     
@@ -263,7 +304,7 @@ void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
 
     render_shadowed_recursive(scene.root, scene, context);
     unbind_shader(); 
-    glDisable(GL_CULL_FACE);
+ //   glDisable(GL_CULL_FACE);
 
 }
 

@@ -6,7 +6,6 @@ using namespace std;
 
 void load_scene(const char* filename, bsp_tree & tree) 
 {    
-    printf("loading scene file %s\n", filename);
     fstream stream;
     stream.open(filename);
     std::string soKey, key;
@@ -49,7 +48,7 @@ void load_scene(const char* filename, bsp_tree & tree)
                 stream >> soKey >> s.botID >> s.leftID >> s.topID >> s.rightID;
                 s.initialized = false;
                 s.renderIndices = {-1, -1};
-
+                
                 s.boundingBox.center = {s.center.x, s.floorHeight + 0.5f * (s.ceilingHeight - s.floorHeight), s.center.y};
                 s.boundingBox.extents = {0.5f * s.width, 0.5f * (s.ceilingHeight - s.floorHeight), 0.5f * s.height };
             }
@@ -103,5 +102,4 @@ void load_scene(const char* filename, bsp_tree & tree)
     }
 
     stream.close();
-    printf("done\n");
  }

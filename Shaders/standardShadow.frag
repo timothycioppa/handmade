@@ -37,6 +37,7 @@ uniform time_data time;
 uniform sampler2D unity_ShadowMap;
 uniform vec3 unity_LightPosition;
 uniform vec3 unity_CameraPosition;
+uniform vec3 unity_CameraForward;
 uniform vec3 lightColor;
 uniform float lightPower;  
 uniform Material material;
@@ -71,6 +72,13 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     return shadow;
 }
 
+float calculateFog(vec3 pos) {
+    
+    float _dist = abs(dot(pos - unity_CameraPosition, unity_CameraForward)) / length(unity_CameraForward); 
+    float maxDist = 75.0f;
+   return  clamp(1.0f - _dist / maxDist, 0.0f, 1.0f);
+}
+
 void main()
 {          
     float shadowValue = ShadowCalculation(fs_in.FragPosLightSpace);
@@ -96,9 +104,12 @@ void main()
         result += lights[i].intensity * (diffuse + specular) * invSqDist;     
     }
 
+
+    float fog = calculateFog(fs_in.FragPos);
+
     float minShadow = 0.2f;
     float remappedShadow = minShadow + (1.0f - minShadow) * (1.0f - shadowValue);
     vec3 finalColor = (remappedShadow * (lightAmbient + result)) * texCol * material.diffuse;
-
+    finalColor *= fog;
     FragColor = vec4(finalColor, 1.0);
 }

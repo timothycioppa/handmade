@@ -5,19 +5,7 @@
 #include "light.hpp"
 #include "Material.hpp"
 #include "math_utils.hpp"
-#define MAX_RAYCAST_ITERATIONS 256
-
-enum NodeType 
-{ 
-    WALL_SEGMENT,
-    SECTOR
-};
-
-struct feature_index 
-{
-    NodeType Type;
-    int ID; // index of either segment or sector (depending on above type)
-};
+#define MAX_RAYCAST_ITERATIONS 512
 
 // each node can render up to 2 things (floor + ceiling or top + bottom wall segment)
 struct renderable_index 
@@ -26,15 +14,15 @@ struct renderable_index
     int renderableIndex1; // index of either ceiling or 
 };
 
+#define MAX_COLLINEAR_SEGMENTS 128
+
 struct bsp_node 
 {  
-    feature_index featureIndex;
+    int segmentIndex;
     bsp_node * front;
     bsp_node * back;
 };
 
-#define FEATURE_TYPE(node) (node)->featureIndex.Type
-#define FEATURE_INDEX(node) (node)->featureIndex.ID
 #define MAX_TREE_NODES 256
 #define RENDERABLE_FEATURE renderable_index renderIndices; 
 
@@ -96,13 +84,13 @@ enum RenderFlags
     FLAG_3 = (1 << 3)
 };
 
-
 struct node_render_data 
 {
+    bool rendered;
     bool highlighted;
     unsigned int renderFlags;    
     RenderableType type; 
-    feature_index indexData;
+    int featureIndex;
     Transform transform;
     Material material;
 };
@@ -133,7 +121,6 @@ struct bsp_tree
     unsigned int numNodes;
     bsp_node nodes[MAX_TREE_NODES];       
     bsp_node *root;    
-
 };
 
 struct raycast_hit 
@@ -168,13 +155,10 @@ struct insertion_point
 sector* get_sector(const glm::vec3 & testPos, bsp_tree & tree);
 void bsp_tree_free(bsp_tree & tree);
 void build_bsp_tree(bsp_tree & tree);
-renderable_index get_render_indices(bsp_node * node, bsp_tree tree);
 wall_segment *get_wall_segment(SectorSide side, sector & s, bsp_tree & tree);
 
 
-#define INIT_SEGMENT(n, i) n.featureIndex.Type = NodeType::WALL_SEGMENT; n.featureIndex.ID = i; n.front = n.back = nullptr;
-#define INIT_SECTOR(n, i) n.featureIndex.Type = NodeType::SECTOR; n.featureIndex.ID = i; n.front = n.back = nullptr;
-#define EXTRACT_SECTOR(n) tree.sectors[FEATURE_INDEX(n)]
-#define EXTRACT_WALL_SEGMENT(n) tree.segments[FEATURE_INDEX(n)]
+#define INIT_SEGMENT(n, i) n.segmentIndex = i; n.front = n.back = nullptr;
+#define EXTRACT_WALL_SEGMENT(n) tree.segments[n->segmentIndex];
 
 #endif

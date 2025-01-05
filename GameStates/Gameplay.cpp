@@ -58,7 +58,6 @@ void OnSectorChanged(sector* oldSector, sector* newSector)
 
 void Gameplay_Update(game_context & context) 
 { 
-
     sector *nextSector = get_sector(main_player.Position, scene); 
     
     if (nextSector != currentSector)
@@ -66,7 +65,6 @@ void Gameplay_Update(game_context & context)
         OnSectorChanged(currentSector, nextSector);
         currentSector = nextSector;
     }
-
 
     if (bsp_raycast(main_player.Position, main_player.Forward, hit, scene)) 
     {   
@@ -92,6 +90,7 @@ void Gameplay_Update(game_context & context)
                     SET_HIGHLIGHTED(r);   
                 }    
             }
+
         }
 
         if (hit.hitSector != nullptr)
@@ -116,9 +115,11 @@ void Gameplay_Update(game_context & context)
                     SET_HIGHLIGHTED(r);
                 }    
             }
+
         }
 
-        debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);                
+        debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
+
     }
 
     // handle jumping
@@ -196,13 +197,14 @@ void clear_single_frame_flags(bsp_tree & tree)
     for (int i = 0; i < tree.numRenderables; i++) 
     {
         node_render_data & r = tree.renderables[i];
+        r.rendered = false;
         UNSET_HIGHLIGHTED(r);
     }
 }
 
 void Gameplay_Render(game_context & context) 
 {
-	G_RenderSceneShadowedFull(scene);	
+   G_RenderSceneShadowedFull(scene);	
 }
 
 void Gameplay_PostRender(game_context & context) 
@@ -212,7 +214,7 @@ void Gameplay_PostRender(game_context & context)
 
 void playerStats() 
 { 
- ImGui::Begin("Player Stats"); 
+    ImGui::Begin("Player Stats"); 
  
     glm::vec3 p = main_player.Position;
     glm::vec3 f = main_player.Forward;
@@ -234,6 +236,7 @@ void playerStats()
 
 void Gameplay_Editor(game_context & context) 
 {
+    #ifdef ASDF
 
  
    playerStats();
@@ -244,7 +247,7 @@ void Gameplay_Editor(game_context & context)
 
 
         ImGui::Text("Num nodes: %d", scene.numNodes);
-        
+
         for (int i = 0; i < scene.numNodes; i++) {ImGui::PushID(i);
             sprintf(buff, "node[%d]", i);
             bsp_node & node = scene.nodes[i];
@@ -351,6 +354,7 @@ void Gameplay_Editor(game_context & context)
     }
     ImGui::End();
 
+#endif
 }
 
 void Gameplay_Destroy(game_context & context) 

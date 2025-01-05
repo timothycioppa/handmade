@@ -57,6 +57,8 @@ struct shadowed_uniforms
     glm::vec3 lightColor;
     float lightStrength;
     glm::vec3 cameraPosition;
+    glm::vec3 cameraForward;
+
     float time;
     float delta;
     float cosTime;
@@ -123,6 +125,7 @@ struct shader_shadowed
         unsigned int lightColorID;
         unsigned int lightStrengthID;
         unsigned int cameraPositionID;
+        unsigned int cameraForwardID;
         unsigned int appTimeID;
         unsigned int deltaTimeID;
         unsigned int cosTimeID;

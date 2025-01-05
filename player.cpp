@@ -32,7 +32,7 @@ void Player_Init(game_context * context)
     main_player.Position = {0,2,0};
     main_player.WorldUp = {0,1,0};
     main_player.Jumping = false;
-    main_player.camData.projection = glm::perspective(glm::radians(45.0f), (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT, 0.1f, 100.0f);
+    main_player.camData.projection = glm::perspective(glm::radians(45.0f), (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT, 0.1f, 200.0f);
     update_view_matrix(&main_player);
 }
 

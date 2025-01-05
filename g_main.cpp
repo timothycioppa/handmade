@@ -1,7 +1,6 @@
 #include "g_main.hpp"
 #include "player.hpp"
 #include "game_context.hpp"
-#include "rect.hpp"
 #include "r_main.hpp"
 
 #include "math_utils.hpp"
@@ -157,12 +156,10 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
         render_shadow_depth_recursive(node->front, tree);
     }
 
-    renderable_index indices = get_render_indices(node, tree);
+    renderable_index & indices = tree.segments[node->segmentIndex].renderIndices;
 
     if (indices.renderableIndex0 > -1)
     {
-
-
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace * tree.renderables[indices.renderableIndex0].transform.localToWorldMatrix();             
 
@@ -207,6 +204,7 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
 
     context.shadowMapID = shadowDepthMapFB.texture;
     context.cameraPosition = main_player.Position;
+    context.cameraForward = main_player.Forward;
     context.lightSpace = lightData.lightSpaceMatrix;
     context.lightPosition = { 0.0f, 0.0f, 0.0f};
     context.lightColor = {1.0f, 1.0f, 0.0f};
@@ -215,7 +213,6 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     context.deltaTime = gContext.deltaTime;
     context.sinTime = gContext.sinTime;
     context.cosTime = gContext.cosTime;
-
     context.v = main_player.camData.view;
     context.p = main_player.camData.projection;
 
@@ -223,6 +220,8 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     glClearColor(lightStrength * 0.4f, lightStrength * 0.6f, lightStrength * 0.3f, 1.0f);
     glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
 
     R_RenderMeshStandardShadowed(scene, context); 
 }
@@ -269,16 +268,11 @@ void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data 
 void G_RenderSceneShadowedFull(bsp_tree & scene) 
 {
 	G_StartFrame();
-    G_RenderShadowDepth(scene);	
-    
-    G_RenderToHDRColorBuffer(scene);
-    
-    G_RenderOverlay();
-    
-    R_DrawLines();
-    
+    G_RenderShadowDepth(scene); 
+    G_RenderToHDRColorBuffer(scene); 
+    G_RenderOverlay(); 
+    R_DrawLines();    
     G_RenderFinalFrame();
-
 }
 
 

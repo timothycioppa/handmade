@@ -36,6 +36,7 @@ void shader_init_uniforms(shader_shadowed & shader)
     shader.uniformIDS.modelViewProjID = glGetUniformLocation(pID, "unity_MVP");
     shader.uniformIDS.lightSpaceID = glGetUniformLocation(pID, "lightSpaceMatrix");
     shader.uniformIDS.cameraPositionID = glGetUniformLocation(pID, "unity_CameraPosition");
+    shader.uniformIDS.cameraForwardID = glGetUniformLocation(pID, "unity_CameraForward");
     shader.uniformIDS.lightPosID = glGetUniformLocation(pID, "unity_LightPosition");
     shader.uniformIDS.lightColorID = glGetUniformLocation(pID, "lightColor");
     shader.uniformIDS.lightStrengthID = glGetUniformLocation(pID, "lightPower");    
@@ -99,6 +100,7 @@ void set_uniforms(shader_texturedRect & shader, texrect_uniforms & uniforms){
 }
 
 void set_uniforms(shader_shadowed & shader, shadowed_uniforms & uniforms){
+
     set_texture(shader.uniformIDS.mainTexID, uniforms.mainTex, 0);
     set_texture(shader.uniformIDS.shadowMapID, uniforms.shadowMap, 1);
     set_float3(shader.uniformIDS.diffuseID, uniforms.diffuse);
@@ -110,6 +112,8 @@ void set_uniforms(shader_shadowed & shader, shadowed_uniforms & uniforms){
     set_mat4(shader.uniformIDS.modelViewProjID, uniforms.modelViewProjection);
     set_mat4(shader.uniformIDS.lightSpaceID, uniforms.lightSpace);
     set_float3(shader.uniformIDS.cameraPositionID, uniforms.cameraPosition);
+    set_float3(shader.uniformIDS.cameraForwardID, uniforms.cameraForward);
+
     set_float3(shader.uniformIDS.lightPosID, uniforms.lightPosition);
     set_float3(shader.uniformIDS.lightColorID, uniforms.lightColor);
     set_float(shader.uniformIDS.lightStrengthID, uniforms.lightStrength);

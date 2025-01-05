@@ -9,13 +9,12 @@ void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_
 void initialize_segmented_wall( wall_segment & segment,  node_render_data & topWall, node_render_data & bottomWall, bsp_tree & tree) ;
 void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tree) ;
 void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree & tree) ;
-unsigned int required_renderables(wall_segment & segment) ;
+unsigned int required_renderables(wall_segment & segment);
 insertion_point findInsertionPoint(wall_segment & segment, bsp_node * currentNode, bsp_tree & tree);
 
 wall_segment *get_wall_segment(SectorSide side, sector & s, bsp_tree & tree)
 {   
-    wall_segment * result = nullptr;
-   
+    wall_segment * result = nullptr;  
     switch (side) 
     {
         case SectorSide::BOTTOM: { if (s.botID > -1) {  result = &tree.segments[s.botID]; } } break;
@@ -23,65 +22,71 @@ wall_segment *get_wall_segment(SectorSide side, sector & s, bsp_tree & tree)
         case SectorSide::TOP: { if (s.topID > -1) {  result = &tree.segments[s.topID]; } } break;
         case SectorSide::RIGHT: { if (s.rightID > -1) {  result = &tree.segments[s.rightID]; } } break;
     }
-
-    return result;
-}
-
-renderable_index get_render_indices(bsp_node * node, bsp_tree tree)
-{
-    renderable_index result = {-1, -1};
-    
-    if (node != nullptr)
-    {
-        NodeType nodeType = FEATURE_TYPE(node);
-        int ID = FEATURE_INDEX(node);
-
-        switch (nodeType) 
-        {
-            case NodeType::SECTOR: 
-            { 
-                sector & s = tree.sectors[ID];
-                result.renderableIndex0 = s.renderIndices.renderableIndex0;
-                result.renderableIndex1 = s.renderIndices.renderableIndex1;
-            }  break;
-
-            case NodeType::WALL_SEGMENT: 
-            { 
-                wall_segment & s = tree.segments[ID];
-                result.renderableIndex0 = s.renderIndices.renderableIndex0;
-                result.renderableIndex1 = s.renderIndices.renderableIndex1;
-            }  break; 
-        }
-
-    }
-
     return result;
 }
 
 sector* get_sector_recursive(const glm::vec3 & testPos, bsp_node * node, bsp_tree & tree) 
-{
-    if (node == nullptr) 
-    {
-        return nullptr;
-    }
-
-    // in an open sector
-    if (FEATURE_TYPE(node) == NodeType::SECTOR) 
-    {
-        return &tree.sectors[FEATURE_INDEX(node)];
-    } 
-   
-    wall_segment & seg = tree.segments[ FEATURE_INDEX(node)];
+{   
+    wall_segment & seg = EXTRACT_WALL_SEGMENT(node);
     float test = glm::dot(seg.normal, testPos - seg.start);
 
     if (test > 0.0f) 
     {
-        return get_sector_recursive(testPos, node->front, tree);
+        if (node->front != nullptr)
+        {
+            return get_sector_recursive(testPos, node->front, tree);
+        }
+        else
+        {
+            if (seg.frontSectorID > -1) 
+            {
+                sector & sect = tree.sectors[seg.frontSectorID];
+
+                if (aabb_walls_contains(testPos, sect.boundingBox))
+                {
+                    return &sect;
+                }
+            }
+
+            if (seg.backSectorID > -1) 
+            {
+                sector & sect = tree.sectors[seg.backSectorID];
+                if (aabb_walls_contains(testPos, sect.boundingBox))
+                {
+                    return &sect;
+                }
+            }
+       }
     } 
     else 
     {         
-        return get_sector_recursive(testPos, node->back, tree);
+        if (node->back != nullptr)
+        {
+            return get_sector_recursive(testPos, node->back, tree);
+        } 
+        else
+        {
+            if (seg.frontSectorID > -1) 
+            {
+                AABB & frontBB = tree.sectors[seg.frontSectorID].boundingBox;    
+
+                if (aabb_walls_contains(testPos, frontBB))
+                {
+                    return &tree.sectors[seg.frontSectorID];
+                }
+            }
+            
+            if (seg.backSectorID > -1) 
+            {
+                AABB & backBB = tree.sectors[seg.backSectorID].boundingBox;    
+                if (aabb_walls_contains(testPos, backBB))
+                {
+                    return &tree.sectors[seg.backSectorID];
+                }
+            }
+        }
     } 
+    return nullptr;
 }
 
 sector* get_sector(const glm::vec3 & testPos, bsp_tree & tree) 
@@ -89,33 +94,13 @@ sector* get_sector(const glm::vec3 & testPos, bsp_tree & tree)
     return get_sector_recursive(testPos, tree.root, tree);
 }
 
-bsp_node* find_sector_node(int sectorID, bsp_tree & tree)
+unsigned int initialize_wall_nodes(bsp_tree & tree) 
 {
-    if (sectorID > -1)
-    {
-        for (int i = 0; i < tree.numNodes; i++)
-        {
-            if (tree.nodes[i].featureIndex.Type == NodeType::SECTOR && tree.nodes[i].featureIndex.ID == sectorID)
-            {
-                return &tree.nodes[i];
-            }
-        }
-    }
-    return nullptr;
-}
-
-void build_bsp_tree(bsp_tree & tree)
-{
-    
-    int requiredRenderables = 0;
-
-    // hard initialize the root (just to make finding pivot points easier)    
     int segmentID = 0;
-
     bsp_node & root = tree.nodes[0];     
     INIT_SEGMENT(root, segmentID)
     tree.root = &root;
-    requiredRenderables += required_renderables(tree.segments[segmentID]);
+    unsigned int requiredRenderables = required_renderables(tree.segments[segmentID]);
     tree.numNodes = 1;
 
     // create one new bsp_node for each wall segment in the room.
@@ -140,143 +125,89 @@ void build_bsp_tree(bsp_tree & tree)
         tree.numNodes++;
     }
 
-    printf("nodes %d\n", tree.numNodes);
+    return requiredRenderables;
 
-    // render data for floor and ceiling (for each sector)
-    requiredRenderables += (2 * tree.numSectors);
-    
-    // we should have tree.numNodes new nodes in the list.
-    // we will now insert fewer (or the same number) nodes, corresponding to the sectors in the room
-    int nodeCount = tree.numNodes;
+}
 
-    for (int i = 0; i < nodeCount; i++) 
+unsigned int initialize_wall_renderables(bsp_tree & tree) 
+{ 
+    unsigned int currentRenderable = 0;
+
+    for (int segIndex = 0; segIndex < tree.numSegments; segIndex++) 
     {
-        bsp_node & segmentNode = tree.nodes[i];
-        wall_segment & segment = tree.segments[FEATURE_INDEX(&segmentNode)];
+        wall_segment & segment = tree.segments[segIndex];
 
-        printf("segment [%d]\n", i);
-        printf("\t sector ids [%d, %d]\n", segment.backSectorID, segment.frontSectorID);
-        printf("\t pointer    [%d, %d]\n", segmentNode.back == nullptr, segmentNode.front == nullptr);
-        
-        if (segmentNode.back == nullptr)
+        // solid wall
+        if (segment.backSectorID < 0) 
         {
-            if (segment.backSectorID > -1) 
-            {
-                if (!tree.sectors[segment.backSectorID].initialized)
-                {
-                    tree.sectors[segment.backSectorID].initialized = true;
-                    bsp_node & newSectorNode = tree.nodes[tree.numNodes];                
-                    INIT_SECTOR(newSectorNode, segment.backSectorID) 
-                    tree.numNodes++;        
-                    segmentNode.back = find_sector_node(segment.backSectorID, tree);
-                } 
-            }
+            node_render_data & wall = tree.renderables[currentRenderable];
+            wall.renderFlags = 0;
+            wall.type = RenderableType::RT_SOLID_WALL;
+            segment.renderIndices.renderableIndex0 = currentRenderable;
+            currentRenderable += 1;     
+            tree.numRenderables += 1;
+            wall.featureIndex = segIndex;
+            initialize_solid_wall(segment, wall, tree);
+        } 
+        else 
+        { 
+            node_render_data & topWall = tree.renderables[currentRenderable];
+            topWall.type = RenderableType::RT_WALL_TOP_SEGMENT;
+            topWall.renderFlags = 0;
+            segment.renderIndices.renderableIndex0 = currentRenderable;
+            
+            node_render_data & bottomWall = tree.renderables[currentRenderable + 1]; 
+            bottomWall.type = RenderableType::RT_WALL_BOTTOM_SEGMENT;
+            bottomWall.renderFlags = 0;
+            segment.renderIndices.renderableIndex1 = currentRenderable + 1;
+
+            currentRenderable += 2;            
+            tree.numRenderables += 2;
+
+            initialize_segmented_wall(segment, topWall, bottomWall, tree);
+                                        
+            topWall.featureIndex = segIndex;
+            bottomWall.featureIndex = segIndex;
         }
 
-        if (segmentNode.front == nullptr)
-        {
-            if (segment.frontSectorID > -1) 
-            {
-                if (!tree.sectors[segment.frontSectorID].initialized)
-                {
-                    tree.sectors[segment.frontSectorID].initialized = true;                    
-                    bsp_node & newSectorNode = tree.nodes[tree.numNodes];
-                    INIT_SECTOR(newSectorNode, segment.frontSectorID)                    
-                    tree.numNodes++;        
-                    segmentNode.front = find_sector_node(segment.frontSectorID, tree);   
-                } 
-            }       
-        }
-    }
-
-
-    // each sector requires a floor and a ceiling quad
-    tree.renderables = (node_render_data *) malloc(requiredRenderables * sizeof(node_render_data));
-    tree.numRenderables = 0;
-
-    // the tree data is now built. We next go through and generate rendering data for each wall (potentially split), ceiling, and floor node
-    int currentRenderable = 0;
-
-    for (int i = 0; i < tree.numNodes; i++) 
-    {
-        bsp_node & node = tree.nodes[i];
-        bsp_node *pNode = &node;
-
-        switch (FEATURE_TYPE(pNode)) 
-        {
-            case NodeType::SECTOR: 
-            { 
-                sector & s = tree.sectors[FEATURE_INDEX(pNode)];
-
-
-                node_render_data & floor = tree.renderables[currentRenderable];
-                floor.type = RenderableType::RT_FLOOR;
-                floor.renderFlags = 0;
-                s.renderIndices.renderableIndex0 = currentRenderable;
-                floor.indexData = {NodeType::SECTOR, FEATURE_INDEX(pNode)};
-
-
-                node_render_data & ceiling = tree.renderables[currentRenderable + 1];
-                ceiling.type = RenderableType::RT_CEILING;
-                ceiling.renderFlags = 0;
-                ceiling.indexData = {NodeType::SECTOR, FEATURE_INDEX(pNode)};
-
-                s.renderIndices.renderableIndex1 = currentRenderable + 1;
-                currentRenderable += 2;               
-
-
-                initialize_sector_floor(s, floor, tree);
-                initialize_sector_ceiling(s, ceiling, tree);           
-
-                tree.numRenderables += 2;
-
-            } break;
-
-            case NodeType::WALL_SEGMENT: 
-            { 
-                wall_segment & segment = tree.segments[FEATURE_INDEX(pNode)];
-
-                // solid wall
-                if (segment.backSectorID < 0) 
-                {
-                    node_render_data & wall = tree.renderables[currentRenderable];
-                    wall.renderFlags = 0;
-                    wall.type = RenderableType::RT_SOLID_WALL;
-                    segment.renderIndices.renderableIndex0 = currentRenderable;
-
-                    currentRenderable += 1;     
-                    tree.numRenderables += 1;
-
-                    wall.indexData = {NodeType::WALL_SEGMENT, FEATURE_INDEX(pNode)};
-
-                    initialize_solid_wall(segment, wall, tree);
-                } 
-                else 
-                { 
-                    node_render_data & topWall = tree.renderables[currentRenderable];
-                    topWall.type = RenderableType::RT_WALL_TOP_SEGMENT;
-                    topWall.renderFlags = 0;
-                    segment.renderIndices.renderableIndex0 = currentRenderable;
-                    
-                    node_render_data & bottomWall = tree.renderables[currentRenderable + 1]; 
-                    bottomWall.type = RenderableType::RT_WALL_BOTTOM_SEGMENT;
-                    bottomWall.renderFlags = 0;
-                    segment.renderIndices.renderableIndex1 = currentRenderable + 1;
-
-                    currentRenderable += 2;            
-                    tree.numRenderables += 2;
-
-                    initialize_segmented_wall(segment, topWall, bottomWall, tree);
-                                                    
-                    topWall.indexData = {NodeType::WALL_SEGMENT, FEATURE_INDEX(pNode)};
-                    bottomWall.indexData = {NodeType::WALL_SEGMENT, FEATURE_INDEX(pNode)};
-
-                }
-            } break;
-        };
     }    
 
-    for (int i = 0; i < tree.lightCount; i++) 
+    return currentRenderable;
+
+}
+
+void initialize_room_renderables(unsigned int currentRenderable, bsp_tree & tree) 
+{
+
+    for (int sectorIndex = 0; sectorIndex < tree.numSectors; sectorIndex++) 
+    {
+        sector & s = tree.sectors[sectorIndex];
+
+        node_render_data & floor = tree.renderables[currentRenderable];
+        floor.type = RenderableType::RT_FLOOR;
+        floor.renderFlags = 0;
+        s.renderIndices.renderableIndex0 = currentRenderable;
+        floor.featureIndex = sectorIndex;
+
+        node_render_data & ceiling = tree.renderables[currentRenderable + 1];
+        ceiling.type = RenderableType::RT_CEILING;
+        ceiling.renderFlags = 0;
+        ceiling.featureIndex = sectorIndex;
+
+        s.renderIndices.renderableIndex1 = currentRenderable + 1;
+        currentRenderable += 2;               
+
+        initialize_sector_floor(s, floor, tree);
+        initialize_sector_ceiling(s, ceiling, tree);           
+
+        tree.numRenderables += 2;
+    }
+
+}
+
+void initialize_scene_lights(bsp_tree & tree)
+{
+ for (int i = 0; i < tree.lightCount; i++) 
     {
         light & l = tree.lights[i];
         l.WorldUp = {0.0f, 1.0f, 0.0f};
@@ -285,6 +216,22 @@ void build_bsp_tree(bsp_tree & tree)
     }
 }
 
+void build_bsp_tree(bsp_tree & tree)
+{  
+    // generate all nodes for wall segments, returning the amount of renderables required
+    unsigned int requiredRenderables = initialize_wall_nodes(tree);
+
+    requiredRenderables += (2 * tree.numSectors);
+    tree.renderables = (node_render_data *) malloc(requiredRenderables * sizeof(node_render_data));
+    tree.numRenderables = 0;
+
+    // the tree data is now built. We next go through and generate rendering data for each wall (potentially split), ceiling, and floor node
+    unsigned int currentRenderable = initialize_wall_renderables(tree);
+
+    initialize_room_renderables(currentRenderable, tree);
+
+    initialize_scene_lights(tree);   
+}
 
 void bsp_tree_free(bsp_tree & tree) 
 {
@@ -296,8 +243,6 @@ void bsp_tree_free(bsp_tree & tree)
 
 void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_tree & tree) 
 {
-    printf("SOLID WALL\n");
-
     sector & frontSector = tree.sectors[segment.frontSectorID];
     float wallWidth = glm::distance(segment.start, segment.end);
     float wallHeight = (frontSector.ceilingHeight - frontSector.floorHeight);
@@ -334,9 +279,8 @@ void initialize_segmented_wall(
     node_render_data & bottomWall, 
     bsp_tree & tree) 
 { 
-
+    printf("SEG WALL\n");
     
-    printf("SEGMENTED WALL\n");
     sector & frontSector = tree.sectors[segment.frontSectorID];
     sector & backSector = tree.sectors[segment.backSectorID];
 
@@ -401,12 +345,8 @@ void initialize_segmented_wall(
     bottomWall.transform.dirty = false;
 }
 
-
 void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tree) 
 {
-    printf("FLOOR\n");
-
-
     floor.transform.position = {s.center.x, s.floorHeight, s.center.y};
     floor.transform.scale = {s.width, s.height, 1.0f};
     floor.transform.axis = {1,0,0};
@@ -430,9 +370,6 @@ void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tr
 
 void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree & tree) 
 {
-    printf("CEILING\n");
-
-
     ceiling.transform.position = glm::vec3(s.center.x, s.ceilingHeight, s.center.y);
     ceiling.transform.scale = {s.width,s.height, 1};
     ceiling.transform.axis = {1,0,0};
@@ -465,7 +402,7 @@ unsigned int required_renderables(wall_segment & segment)
 
 insertion_point findInsertionPoint(wall_segment & segment, bsp_node * currentNode, bsp_tree & tree) 
 { 
-    wall_segment & parentSegment = tree.segments[FEATURE_INDEX(currentNode)];    
+    wall_segment & parentSegment = tree.segments[currentNode->segmentIndex];    
     
     // segment lies in front of the current node's segment
     if (glm::dot(segment.start - parentSegment.start, parentSegment.normal) >= 0 && 

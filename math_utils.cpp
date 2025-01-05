@@ -15,13 +15,21 @@ WallSide getWallSide(glm::vec3 point, room_wall wall)
 float sqrMag(const glm::vec2 & v) { return v.x * v.x + v.y * v.y;}
 float sqrMag(const glm::vec3 & v) { return v.x * v.x + v.y * v.y + v.z * v.z;};
 
-bool aabb_contains(glm::vec3 & pos, const AABB & bb)
+bool aabb_contains(const glm::vec3 & pos, const AABB & bb)
 {
     float xDist = glm::abs(pos.x - bb.center.x);
     float yDist = glm::abs(pos.y - bb.center.y);
     float zDist = glm::abs(pos.z - bb.center.z);
     return (xDist <= bb.extents.x) && (yDist <= bb.extents.y) && (zDist <= bb.extents.z);
 }
+
+bool aabb_walls_contains(const glm::vec3 & pos, const AABB & bb)
+{
+    float xDist = glm::abs(pos.x - bb.center.x);
+    float zDist = glm::abs(pos.z - bb.center.z);
+    return (xDist <= bb.extents.x) &&  (zDist <= bb.extents.z);
+}
+
 
 #define EPS 1e-4f
 

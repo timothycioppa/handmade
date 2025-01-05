@@ -2,34 +2,42 @@
 
 bool test_pos_bsp(const glm::vec3 & testPos, bsp_node * node, bsp_tree & tree) 
 { 
-    // in a closed sector
-    if (node == nullptr) 
-    {
-        return false;
-    }
-
-    // in an open sector
-    if (FEATURE_TYPE(node) == NodeType::SECTOR) 
-    {
-        sector & s = tree.sectors[ FEATURE_INDEX(node)];
-
-        if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
-        {
-            return true;
-        }
-        return false;
-    } 
-
-    wall_segment & seg = tree.segments[ FEATURE_INDEX(node)];
+    wall_segment & seg = tree.segments[node->segmentIndex];
     float test = glm::dot(seg.normal, testPos - seg.start);
 
     if (test > 0.0f) 
     {
-        return test_pos_bsp(testPos, node->front, tree);
+        if (node->front != nullptr)
+        {
+            return test_pos_bsp(testPos, node->front, tree);
+        } else
+        {
+            sector & s = tree.sectors[ seg.frontSectorID];
+
+            if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
+            {
+                return true;
+            }
+
+            return false;
+        }
     } 
     else 
     {         
-        return test_pos_bsp(testPos, node->back, tree);
+        if (node->back != nullptr)
+        {
+            return test_pos_bsp(testPos, node->back, tree);
+        } else
+        {
+            sector & s = tree.sectors[seg.backSectorID];
+
+            if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
+            {
+                return true;
+            }
+
+            return false;
+        }
     } 
 }
 
@@ -182,7 +190,6 @@ bool try_get_intersection(const ray_t & ray, const plane_t & plane, planeInterse
     return false;
 }
 
-
 bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_tree & tree) 
 {
     sector* previousSector = get_sector(origin, tree);
@@ -195,7 +202,7 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
 
     while (true) 
     {
-        
+
         if (iterations > MAX_RAYCAST_ITERATIONS) 
         {
             return false;
@@ -207,7 +214,6 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
         // we've passed into a new sector!
         if(currentSector != previousSector)
         {
-
             // passed into a new sector but maybe passed the floor/ceiling
             if (currentSector != nullptr)
             {
@@ -250,11 +256,11 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
                     {
                         hit.hitSegment = &tree.segments[segmentID];
                     }
-
                     return true;
                 }    
             }
-            else // new sector is null, hit a solid wall
+            else 
+            // new sector is null, hit a solid wall
             {
                 if (previousSector != nullptr)
                 {
@@ -286,7 +292,6 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
                             hit.hitSegment = &tree.segments[segmentID];
                             hit.RenderType = RenderableType::RT_SOLID_WALL;
                         }
-
                         return true;                             
                     }
                     return false;
@@ -295,12 +300,13 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
         } 
         else
         {
+            // still in the same sector
             if (currentSector != nullptr)
             {
                 const sector & curr = *currentSector;
-                
+
                 // hit the ceiling
-                if (current_pos.y >= curr.ceilingHeight) 
+                if (current_pos.y > curr.ceilingHeight) 
                 {
                     plane_t ceilingPlane = get_ceiling_plane(curr);
                     planeIntersection outIntersection;
@@ -312,6 +318,7 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
                         hit.hitSegment = nullptr;
                         hit.position = outIntersection.point;
                         hit.distance = glm::distance(origin, outIntersection.point);    
+    
                         return true;                             
                     }
 
@@ -319,13 +326,13 @@ bool bsp_raycast(glm::vec3 origin, glm::vec3 direction, raycast_hit & hit, bsp_t
                 }   
 
                 // hit the floor
-                if (current_pos.y <= curr.floorHeight)
-                {
+                if (current_pos.y < curr.floorHeight)
+                {  
                     plane_t floorPlane = get_floor_plane(curr);
                     planeIntersection outIntersection;
 
                     if (try_get_intersection(ray, floorPlane, outIntersection))
-                    {                    
+                    {                   
                         hit.RenderType = RenderableType::RT_FLOOR;
                         hit.hitSector = currentSector;
                         hit.hitSegment = nullptr;
