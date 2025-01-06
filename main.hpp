@@ -17,7 +17,7 @@ const glm::vec3 GREEN = glm::vec3(0,1,0);
 const glm::vec3 BLUE = glm::vec3(0,0,1);
 const glm::vec3 BLACK = glm::vec3(0,0,0);
 
-GLFWwindow * CreateWindow() ;
+GLFWwindow * GAME_CreateWindow() ;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);

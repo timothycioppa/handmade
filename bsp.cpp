@@ -15,12 +15,15 @@ insertion_point findInsertionPoint(wall_segment & segment, bsp_node * currentNod
 wall_segment *get_wall_segment(SectorSide side, sector & s, bsp_tree & tree)
 {   
     wall_segment * result = nullptr;  
+
+    #define CHECK_SIDE(side) if (side > -1) { result = &tree.segments[side]; } 
+
     switch (side) 
     {
-        case SectorSide::BOTTOM: { if (s.botID > -1) {  result = &tree.segments[s.botID]; } } break;
-        case SectorSide::LEFT: { if (s.leftID > -1) {  result = &tree.segments[s.leftID]; } } break;
-        case SectorSide::TOP: { if (s.topID > -1) {  result = &tree.segments[s.topID]; } } break;
-        case SectorSide::RIGHT: { if (s.rightID > -1) {  result = &tree.segments[s.rightID]; } } break;
+        case SectorSide::BOTTOM: { CHECK_SIDE(s.botID) } break;
+        case SectorSide::LEFT:   {  CHECK_SIDE(s.leftID)} break;
+        case SectorSide::TOP:    { CHECK_SIDE(s.topID) } break;
+        case SectorSide::RIGHT:  {  CHECK_SIDE(s.rightID)} break;
     }
     return result;
 }
@@ -178,7 +181,6 @@ unsigned int initialize_wall_renderables(bsp_tree & tree)
 
 void initialize_room_renderables(unsigned int currentRenderable, bsp_tree & tree) 
 {
-
     for (int sectorIndex = 0; sectorIndex < tree.numSectors; sectorIndex++) 
     {
         sector & s = tree.sectors[sectorIndex];
@@ -202,7 +204,6 @@ void initialize_room_renderables(unsigned int currentRenderable, bsp_tree & tree
 
         tree.numRenderables += 2;
     }
-
 }
 
 void initialize_scene_lights(bsp_tree & tree)
@@ -259,8 +260,6 @@ void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_
     glm::vec3 lookAt = origin + segment.normal;
     glm::vec3 up = {0,1,0};
 
-    // MVP = p * v * m;
-    // localToProjection * worldToLocal * localToWorld
 
     wall.transform.localToWorld = glm::scale(glm::mat4(1.0f),{wallWidth, wallHeight, 1.0f});
     wall.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * wall.transform.localToWorld;
@@ -279,8 +278,6 @@ void initialize_segmented_wall(
     node_render_data & bottomWall, 
     bsp_tree & tree) 
 { 
-    printf("SEG WALL\n");
-    
     sector & frontSector = tree.sectors[segment.frontSectorID];
     sector & backSector = tree.sectors[segment.backSectorID];
 

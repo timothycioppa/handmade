@@ -1,11 +1,11 @@
 #include "LevelEditor.hpp"
 
-void LevelEditor_Init(game_context & context) 
+GAMESTATE_INIT(LevelEditor)
 {
 	EditorPlayer_Init(&context);
 }
 
-void LevelEditor_Update(game_context & context) 
+GAMESTATE_UPDATE(LevelEditor)
 {
     glm::vec3 lineColor = glm::vec3(1,1,1);
 
@@ -18,30 +18,19 @@ void LevelEditor_Update(game_context & context)
     EditorPlayer_UpdatePosition(&context);    
 }
 
-void LevelEditor_Render(game_context & context) 
+GAMESTATE_RENDER(LevelEditor)
 {
     G_RenderLevelEditor();
 }
 
-void LevelEditor_PostRender(game_context & context) 
+GAMESTATE_POSTRENDER(LevelEditor)
 {
-
 }
 
-void LevelEditor_Editor(game_context & context) 
+GAMESTATE_EDITOR(LevelEditor)
 {}
 
-void LevelEditor_Destroy(game_context & context) 
+GAMESTATE_DESTROY(LevelEditor)
 {}
 
-game_state gStateLevelEditor = 
-{
-    LevelEditor_Init,
-    LevelEditor_Update,
-    LevelEditor_Render,
-    LevelEditor_PostRender,
-    LevelEditor_Editor,
-    LevelEditor_Destroy,
-    false, 
-    GameState::NONE
-};
+EXPORT_GAME_STATE(LevelEditor, gStateLevelEditor);

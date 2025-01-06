@@ -4,32 +4,6 @@
 #include "platform_common.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 
-// struct transform 
-// {
-// 	glm::vec3 position;
-// 	glm::vec3 scale;
-// 	glm::vec3 rotationAxis;
-// 	float rotationInRadians; 
-// 	glm::mat4 localToWorld;	
-// };
-
-// void update_transformation_matrix(transform & t) 
-// {
-// 	glm::mat4 _s = glm::scale(glm::mat4(1.0f), t.scale);
-// 	glm::mat4 _r = glm::rotate(glm::mat4(1.0f), t.rotationInRadians, t.rotationAxis);
-// 	glm::mat4 _t = glm::translate(glm::mat4(1.0f), t.position);
-// 	t.localToWorld = _t * _r * _s;
-// }
-
-// void initialize_transform(transform & t, const glm::vec3 & position, const glm::vec3 & scale, const glm::vec3 & axis, float rotation) 
-// { 
-// 	t.position = position;
-// 	t.rotationAxis = axis;
-// 	t.rotationInRadians = rotation;
-// 	t.scale = scale;
-// 	update_transformation_matrix(t);
-// }
-
 class Transform 
 {
 	private :

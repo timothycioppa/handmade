@@ -1,19 +1,15 @@
 #include "math_utils.hpp"
+#define EPS 1e-4f
 
-WallSide getWallSide(glm::vec3 point, room_wall wall) 
-{
-    float d = glm::dot(point - wall.wall_plane.origin, wall.wall_plane.normal);
-    
-    if (d > 0.0f) 
-    { 
-        return WallSide::FRONT;
-    }
-    
-    return WallSide::BACK;
+float sqrMag(const glm::vec2 & v) 
+{ 
+    return v.x * v.x + v.y * v.y;
 }
 
-float sqrMag(const glm::vec2 & v) { return v.x * v.x + v.y * v.y;}
-float sqrMag(const glm::vec3 & v) { return v.x * v.x + v.y * v.y + v.z * v.z;};
+float sqrMag(const glm::vec3 & v) 
+{ 
+    return v.x * v.x + v.y * v.y + v.z * v.z;
+}
 
 bool aabb_contains(const glm::vec3 & pos, const AABB & bb)
 {
@@ -30,9 +26,6 @@ bool aabb_walls_contains(const glm::vec3 & pos, const AABB & bb)
     return (xDist <= bb.extents.x) &&  (zDist <= bb.extents.z);
 }
 
-
-#define EPS 1e-4f
-
 bool distance_to_plane(const ray_t & ray, const plane_t & plane, float* distance)
 {
     float denom = glm::dot(plane.normal, ray.direction);
@@ -42,4 +35,27 @@ bool distance_to_plane(const ray_t & ray, const plane_t & plane, float* distance
         return true;
     }
     return false;
+}
+
+float distance_to_plane (const glm::vec3 & point, const plane_t & plane) 
+{
+    return glm::dot(point - plane.origin, plane.normal);
+}
+
+#define LX(aabb) aabb.center.x - aabb.extents.x
+#define RX(aabb) aabb.center.x + aabb.extents.x
+#define LY(aabb) aabb.center.y - aabb.extents.y
+#define RY(aabb) aabb.center.y + aabb.extents.y
+#define LZ(aabb) aabb.center.z - aabb.extents.z
+#define RZ(aabb) aabb.center.z + aabb.extents.z
+
+bool aabb_intersect(const AABB & first, const AABB & second)
+{
+    if (LX(first) > RX(second)) { return false; }
+    if (LX(second) > RX(first)) { return false; }
+    if (LY(first) > RY(second)) { return false; }
+    if (LY(second) > RY(first)) { return false; }
+    if (LZ(first) > RZ(second)) { return false; }
+    if (LZ(second) > RZ(first)) { return false; }
+    return true;
 }

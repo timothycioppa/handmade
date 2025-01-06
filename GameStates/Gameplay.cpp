@@ -5,17 +5,25 @@
 #include "../imgui/imgui.h"
 #include "../include/glm/gtc/type_ptr.hpp"
 #include "../bsp_collision.hpp"
+
 #define WALL_TEST_THRESHOLD 2.5f
 float initialYValue;
 float initialYVelocity = 15.0f;
-
 float initialYValueFalling;
-
 bsp_tree scene;
+float targetHeight = 0.0f;
+float targetHeightFalling = 0.0f;
+sector *currentSector = nullptr;
+raycast_hit hit;
+const char* sectortype = "ROOM";
+const char* solidsegmenttype = "WALL";
 
-#include "../include/stb_image.h"
+// callback when the player moves between sectors
+void on_sector_changed(sector* oldSector, sector* newSector);
+void clear_single_frame_flags(bsp_tree & tree);
+void set_hit_highlighted();
 
-void Gameplay_Init(game_context & context) 
+GAMESTATE_INIT(Gameplay)
 { 	   
     load_scene("Scenes/test3.scene", scene);
     build_bsp_tree(scene);
@@ -23,103 +31,20 @@ void Gameplay_Init(game_context & context)
 	Player_Init(&context);
 }
 
-float targetHeight = 0.0f;
-float targetHeightFalling = 0.0f;
-sector *currentSector = nullptr;
-raycast_hit hit;
-
-void OnSectorChanged(sector* oldSector, sector* newSector) 
-{
-    // newSector shouldn't be allowed to be null. Currently it can be because there's no collision
-    // TODO: remove null check after putting collisions in, maybe replace with assertion? 
-    // or validate outside and pass a reference rather than a pointer
-
-    if (newSector != nullptr)
-    {
-        float playerHeight = 2.0f;
-        targetHeight = newSector->floorHeight + playerHeight;
-        targetHeightFalling = newSector->floorHeight + playerHeight;
-
-        if (!main_player.Jumping) 
-        {
-            if (oldSector != nullptr)
-            {
-                if (newSector->floorHeight < oldSector->floorHeight) 
-                {
-                    main_player.Falling = true;
-                    main_player.FallTimer = 0.0f;
-                    initialYValueFalling = main_player.Position.y;
-                }
-            }
-        }
-    }
-}
-
-
-void Gameplay_Update(game_context & context) 
+GAMESTATE_UPDATE(Gameplay)
 { 
     sector *nextSector = get_sector(main_player.Position, scene); 
     
     if (nextSector != currentSector)
     {
-        OnSectorChanged(currentSector, nextSector);
+        on_sector_changed(currentSector, nextSector);
         currentSector = nextSector;
     }
 
     if (bsp_raycast(main_player.Position, main_player.Forward, hit, scene)) 
-    {   
-        if (hit.hitSegment != nullptr)
-        {
-            int index0 = hit.hitSegment->renderIndices.renderableIndex0;
-            int index1 = hit.hitSegment->renderIndices.renderableIndex1;
-
-            if (hit.RenderType == RenderableType::RT_SOLID_WALL || hit.RenderType == RenderableType::RT_WALL_TOP_SEGMENT)    
-            {
-                if (index0 > -1) 
-                {
-                    node_render_data & r = scene.renderables[index0];
-                    SET_HIGHLIGHTED(r);
-                }    
-            }
-
-            if (hit.RenderType == RenderableType::RT_WALL_BOTTOM_SEGMENT )
-            {
-                if (index1 > -1) 
-                {
-                    node_render_data & r = scene.renderables[index1];
-                    SET_HIGHLIGHTED(r);   
-                }    
-            }
-
-        }
-
-        if (hit.hitSector != nullptr)
-        {
-            int index0 = hit.hitSector->renderIndices.renderableIndex0;
-            int index1 = hit.hitSector->renderIndices.renderableIndex1;
-
-            if (hit.RenderType == RenderableType::RT_FLOOR )
-            {
-                if (index0 > -1) 
-                {
-                    node_render_data & r = scene.renderables[index0];
-                    SET_HIGHLIGHTED(r);                
-                }    
-            }
-
-            if (hit.RenderType == RenderableType::RT_CEILING)
-            {
-                if (index1 > -1) 
-                {
-                    node_render_data & r = scene.renderables[index1];
-                    SET_HIGHLIGHTED(r);
-                }    
-            }
-
-        }
-
+    {         
+        set_hit_highlighted();
         debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
-
     }
 
     // handle jumping
@@ -192,49 +117,17 @@ void Gameplay_Update(game_context & context)
     }     
 }
 
-void clear_single_frame_flags(bsp_tree & tree)
-{
-    for (int i = 0; i < tree.numRenderables; i++) 
-    {
-        node_render_data & r = tree.renderables[i];
-        r.rendered = false;
-        UNSET_HIGHLIGHTED(r);
-    }
-}
-
-void Gameplay_Render(game_context & context) 
+GAMESTATE_RENDER(Gameplay)
 {
    G_RenderSceneShadowedFull(scene);	
 }
 
-void Gameplay_PostRender(game_context & context) 
+GAMESTATE_POSTRENDER(Gameplay)
 { 
     clear_single_frame_flags(scene);
 }
 
-void playerStats() 
-{ 
-    ImGui::Begin("Player Stats"); 
- 
-    glm::vec3 p = main_player.Position;
-    glm::vec3 f = main_player.Forward;
-    glm::vec3 r = main_player.Right;
-    glm::vec3 u = main_player.Up;
-    glm::vec3 m = main_player.MoveDir;
- 
- 
-    ImGui::Text("P.Pos:  { %g %g %g }", p.x, p.y, p.z);
-    ImGui::Text("P.For:  { %g %g %g }", f.x, f.y, f.z);
-    ImGui::Text("P.Rgh:  { %g %g %g }", r.x, r.y, r.z);
-    ImGui::Text("P.UP:  { %g %g %g }", u.x, u.y, u.z);
-    ImGui::Text("P.MOVE:  { %g %g %g }", m.x, m.y, m.z);
-    ImGui::End();
-}
-
-    const char* sectortype = "ROOM";
-    const char* solidsegmenttype = "WALL";
-
-void Gameplay_Editor(game_context & context) 
+GAMESTATE_EDITOR(Gameplay)
 {
     #ifdef ASDF
 
@@ -357,20 +250,123 @@ void Gameplay_Editor(game_context & context)
 #endif
 }
 
-void Gameplay_Destroy(game_context & context) 
+GAMESTATE_DESTROY(Gameplay)
 { 
     bsp_tree_free(scene);
 }
 
-// main game state, used in the main state machine
-game_state gStateGameplay = 
+EXPORT_GAME_STATE(Gameplay, gStateGameplay);
+
+void on_sector_changed(sector* oldSector, sector* newSector) 
 {
-    Gameplay_Init,
-    Gameplay_Update,
-    Gameplay_Render,
-    Gameplay_PostRender,
-    Gameplay_Editor,
-    Gameplay_Destroy,
-    false, 
-    GameState::NONE
-};
+    if (newSector != nullptr)
+    {
+        float playerHeight = 2.0f;
+        targetHeight = newSector->floorHeight + playerHeight;
+        targetHeightFalling = newSector->floorHeight + playerHeight;
+
+        if (!main_player.Jumping) 
+        {
+            if (oldSector != nullptr)
+            {
+                // start falling 
+                if (newSector->floorHeight < oldSector->floorHeight) 
+                {
+                    main_player.Falling = true;
+                    main_player.FallTimer = 0.0f;
+                    initialYValueFalling = main_player.Position.y;
+                }
+
+                // step up to a new higher sector
+                if (!main_player.Falling) 
+                {
+                    if (newSector->floorHeight > oldSector->floorHeight)
+                    {
+                        main_player.Position.y = newSector->floorHeight + playerHeight;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void set_hit_highlighted()
+{
+    if (hit.hitSegment != nullptr)
+    {
+        int index0 = hit.hitSegment->renderIndices.renderableIndex0;
+        int index1 = hit.hitSegment->renderIndices.renderableIndex1;
+
+        if (hit.RenderType == RenderableType::RT_SOLID_WALL || hit.RenderType == RenderableType::RT_WALL_TOP_SEGMENT)    
+        {
+            if (index0 > -1) 
+            {
+                node_render_data & r = scene.renderables[index0];
+                SET_HIGHLIGHTED(r);
+            }    
+        }
+
+        if (hit.RenderType == RenderableType::RT_WALL_BOTTOM_SEGMENT )
+        {
+            if (index1 > -1) 
+            {
+                node_render_data & r = scene.renderables[index1];
+                SET_HIGHLIGHTED(r);   
+            }    
+        }
+
+    }
+
+    if (hit.hitSector != nullptr)
+    {
+        int index0 = hit.hitSector->renderIndices.renderableIndex0;
+        int index1 = hit.hitSector->renderIndices.renderableIndex1;
+
+        if (hit.RenderType == RenderableType::RT_FLOOR )
+        {
+            if (index0 > -1) 
+            {
+                node_render_data & r = scene.renderables[index0];
+                SET_HIGHLIGHTED(r);                
+            }    
+        }
+
+        if (hit.RenderType == RenderableType::RT_CEILING)
+        {
+            if (index1 > -1) 
+            {
+                node_render_data & r = scene.renderables[index1];
+                SET_HIGHLIGHTED(r);
+            }    
+        }
+    }
+}
+
+void clear_single_frame_flags(bsp_tree & tree)
+{
+    for (int i = 0; i < tree.numRenderables; i++) 
+    {
+        node_render_data & r = tree.renderables[i];
+        r.rendered = false;
+        UNSET_HIGHLIGHTED(r);
+    }
+}
+
+void playerStats() 
+{ 
+    ImGui::Begin("Player Stats"); 
+ 
+    glm::vec3 p = main_player.Position;
+    glm::vec3 f = main_player.Forward;
+    glm::vec3 r = main_player.Right;
+    glm::vec3 u = main_player.Up;
+    glm::vec3 m = main_player.MoveDir;
+ 
+ 
+    ImGui::Text("P.Pos:  { %g %g %g }", p.x, p.y, p.z);
+    ImGui::Text("P.For:  { %g %g %g }", f.x, f.y, f.z);
+    ImGui::Text("P.Rgh:  { %g %g %g }", r.x, r.y, r.z);
+    ImGui::Text("P.UP:  { %g %g %g }", u.x, u.y, u.z);
+    ImGui::Text("P.MOVE:  { %g %g %g }", m.x, m.y, m.z);
+    ImGui::End();
+}

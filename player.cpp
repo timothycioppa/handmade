@@ -102,7 +102,6 @@ void Player_UpdatePosition( game_context * context)
     { 
             float velocity = main_player.MovementSpeed * (context->deltaTime);
             main_player.Position += velocity * main_player.MoveDir;
-            main_player.camData.view = glm::lookAt(main_player.Position,main_player.Position + main_player.Forward, {0,1,0});
-
+            main_player.camData.view = glm::lookAt(main_player.Position, main_player.Position + main_player.Forward, {0,1,0});
     } 
 }

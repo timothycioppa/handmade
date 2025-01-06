@@ -5,7 +5,6 @@
 #include "../platform_common.hpp"
 #include <vector>
 
-
 #define COMPILE_SHADER(v, f, s) do { \
     load_shader((v), (f), (s).shader); \
     shader_init_uniforms(s); \
@@ -29,6 +28,7 @@ struct depth_Uniforms
 { 
     glm::mat4 local2LightSpace;
 };
+
 struct coloredrect_uniforms
 {
     glm::vec3 color;
@@ -41,29 +41,6 @@ struct texrect_uniforms
     glm::vec3 dimensions;
     glm::vec3 lowerLeft;
 };
-struct shadowed_uniforms 
-{ 
-    unsigned int shadowMap;
-    unsigned int mainTex;
-    glm::vec3 diffuse;
-    glm::vec3 specular;
-    float shininess;
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 modelView;
-    glm::mat4 modelViewProjection;
-    glm::mat4 lightSpace;
-    glm::vec3 lightPosition;
-    glm::vec3 lightColor;
-    float lightStrength;
-    glm::vec3 cameraPosition;
-    glm::vec3 cameraForward;
-
-    float time;
-    float delta;
-    float cosTime;
-    float sinTime;
-};
 
 struct line_render_uniforms 
 { 
@@ -74,7 +51,8 @@ struct screen_blit_uniforms {
     unsigned int screenTexture;
 };
 
-struct hdr_uniforms { 
+struct hdr_uniforms 
+{ 
     unsigned int hdrBuffer;
     unsigned int hdr;
     float exposure;
@@ -106,7 +84,6 @@ struct text_render_uniforms
     glm::mat4 projection;
 };
 
-
 struct shader_shadowed
 {
     compiled_shader shader;
@@ -132,6 +109,7 @@ struct shader_shadowed
         unsigned int sinTimeID;
     } uniformIDS;
 };
+
 struct shader_texturedRect 
 {
     compiled_shader shader;
@@ -141,6 +119,7 @@ struct shader_texturedRect
         unsigned int texID;
     } uniformsIDS;
 };
+
 struct shader_coloredRect 
 {
     compiled_shader shader;
@@ -186,7 +165,6 @@ void set_uniforms(shader_render_lines & shader, line_render_uniforms & uniforms)
 
 void set_uniforms(shader_coloredRect & shader, coloredrect_uniforms & uniforms);
 void set_uniforms(shader_texturedRect & shader, texrect_uniforms & uniforms);
-void set_uniforms(shader_shadowed & shader, shadowed_uniforms & uniforms);
 void set_uniforms(shader_depthPass & shader, depth_Uniforms & uniforms);
 void set_uniforms(shader_fullscreenBlit & shader, screen_blit_uniforms & uniforms);
 void set_uniforms(shader_text_rendering & shader, text_render_uniforms & uniforms);

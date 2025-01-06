@@ -162,11 +162,7 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
     {
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace * tree.renderables[indices.renderableIndex0].transform.localToWorldMatrix();             
-
-
         glUniformMatrix4fv(shadowDepthPass.uniformsIDS.local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
-
-
         render_mesh(quadMesh);
     }
 
@@ -174,7 +170,6 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
     {
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace  * tree.renderables[indices.renderableIndex1].transform.localToWorldMatrix();                        
-
         glUniformMatrix4fv(shadowDepthPass.uniformsIDS.local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
         render_mesh(quadMesh);
     }
@@ -217,7 +212,7 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     context.p = main_player.camData.projection;
 
     glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
-    glClearColor(lightStrength * 0.4f, lightStrength * 0.6f, lightStrength * 0.3f, 1.0f);
+    glClearColor(0,0,0, 1.0f);
     glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -263,8 +258,6 @@ void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data 
     R_DrawLine(glm::vec2(ss.x, ss.y ), glm::vec2(ee.x , ee.y), color); 
 }
 
-
-
 void G_RenderSceneShadowedFull(bsp_tree & scene) 
 {
 	G_StartFrame();
@@ -274,8 +267,6 @@ void G_RenderSceneShadowedFull(bsp_tree & scene)
     R_DrawLines();    
     G_RenderFinalFrame();
 }
-
-
 
 void G_RenderOverlay() 
 { 

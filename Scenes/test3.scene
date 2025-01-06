@@ -1,9 +1,9 @@
 sectors
 count 4 
 floor 0 ceiling 25 center 25 25 dimensions 50 50 wall 0 1 2 3
-floor 1 ceiling 24 center -25 75 dimensions 50 50 wall 4 5 6 7
-floor 2 ceiling 23 center 25 75 dimensions 50 50 wall 2 7 8 9
-floor 3 ceiling 22 center 75 75 dimensions 50 50 wall 12 9 10 11
+floor 8 ceiling 24 center -25 75 dimensions 50 50 wall 4 5 6 7
+floor 5 ceiling 23 center 25 75 dimensions 50 50 wall 2 7 8 9
+floor 8 ceiling 22 center 75 75 dimensions 50 50 wall 12 9 10 11
 
 segments
 count 13
@@ -16,7 +16,7 @@ s -50 50    e -50 100   f 1 b -1
 s -50 100   e 0 100     f 1 b -1
 s 0 100     e 0 50      f 1 b 2
 s 0 100     e 50 100    f 2 b -1
-s 50 100    e 50 50     f 3 b 2
+s 50 50    e 50 100     f 3 b 2
 s 50 100    e 100 100   f 3 b -1
 s 100 100   e 100 50    f 3 b -1
 s 100 50    e 50 50     f 3 b -1

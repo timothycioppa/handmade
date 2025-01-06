@@ -6,13 +6,13 @@
 #include "../g_main.hpp"
 #include "../editor_controller.hpp"
 
-
 extern game_state gStateLevelEditor;
 
-void LevelEditor_Init(game_context & context);
-void LevelEditor_Update(game_context & context);
-void LevelEditor_Render(game_context & context);
-void LevelEditor_Editor(game_context & context);
-void LevelEditor_Destroy(game_context & context);
+GAMESTATE_INIT(LevelEditor);
+GAMESTATE_UPDATE(LevelEditor);
+GAMESTATE_RENDER(LevelEditor);
+GAMESTATE_POSTRENDER(LevelEditor);
+GAMESTATE_EDITOR(LevelEditor);
+GAMESTATE_DESTROY(LevelEditor);
 
 #endif

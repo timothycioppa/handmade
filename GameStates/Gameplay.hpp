@@ -8,10 +8,11 @@
 
 extern game_state gStateGameplay;
 
-void Gameplay_Init(game_context & context) ;
-void Gameplay_Update(game_context & context) ;
-void Gameplay_Render(game_context & context);
-void Gameplay_Editor(game_context & context);
-void Gameplay_Destroy(game_context & context) ;
+GAMESTATE_INIT(Gameplay);
+GAMESTATE_UPDATE(Gameplay);
+GAMESTATE_RENDER(Gameplay);
+GAMESTATE_POSTRENDER(Gameplay);
+GAMESTATE_EDITOR(Gameplay);
+GAMESTATE_DESTROY(Gameplay);
 
 #endif

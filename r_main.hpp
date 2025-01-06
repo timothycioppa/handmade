@@ -22,7 +22,6 @@ extern shader_texturedRect texturedRect;
 extern texrect_uniforms texRectUniforms;
 
 extern shader_shadowed standardShadowed;
-extern shadowed_uniforms shadowedUniforms;
 
 enum GameFont 
 { 
@@ -36,13 +35,9 @@ void R_Cleanup() ;
 void R_RenderFullScreenQuad();
 void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c) ;
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture);
-
-//void R_RenderMeshStandardShadowed(scene_data & scene,  RenderContext & context);
 void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context);
-
 void R_DrawText(std::string text, float x, float y, float scale, glm::vec3 color, GameFont font);  
 void R_DrawLines();
 void R_DrawLine(glm::vec2 start, glm::vec2 end, glm::vec3 color); 
-
 
 #endif

@@ -56,16 +56,16 @@ enum InputModifiers
     MOD_UNKNOWN = 3
 };
 
-enum event_type 
+enum system_event_type 
 { 
-    KEY_EVENT,
-    MOUSE_BUTTON_EVENT,
-    MOUSE_MOVEMENT_EVENT 
+    KEY_EVT,
+    MOUSE_BUTTON_EVT,
+    MOUSE_MOVEMENT_EVT 
 };
 
 struct system_event 
 { 
-    event_type Type;
+    system_event_type Type;
     unsigned int arg1, arg2, arg3, arg4, arg5, arg6;
 };
 

@@ -7,9 +7,10 @@
 #define LIMIT_FRAMERATE 0
 #define WAIT_UNTIL(time) while (glfwGetTime() < time) {}
 
+
 int main(int argc, char** argv)
 {
-	GLFWwindow* window = CreateWindow();
+	GLFWwindow* window = GAME_CreateWindow();
 
 	if (window == NULL) 
 	{ 
@@ -28,6 +29,7 @@ int main(int argc, char** argv)
 	#if LIMIT_FRAMERATE == 1
 		float targetFrameTime = 1.0f / TARGET_FPS;
 	#endif
+
 
 	while (gContext.gameRunning)
 	{
@@ -73,6 +75,8 @@ int main(int argc, char** argv)
 		Editor_Shutdown();
 	#endif
 	
+
+
 	GAME_Cleanup() ;
 	glfwDestroyWindow(window);
 	glfwTerminate();
@@ -80,7 +84,7 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-GLFWwindow * CreateWindow() 
+GLFWwindow * GAME_CreateWindow() 
 { 
 	GLFWwindow* window;
 
@@ -106,24 +110,27 @@ GLFWwindow * CreateWindow()
 
 	return window;
 }
+
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
 	system_event evt;
-	evt.Type = event_type::MOUSE_BUTTON_EVENT;
+	evt.Type = system_event_type::MOUSE_BUTTON_EVT;
 	evt.arg1 = int (translate_mouse_button(button));
 	evt.arg2 = int (translate_input_action(action));
 	evt.arg3 = int (translate_input_modifier(mods));
 	push_event(&evt);
 }
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{		
+{			
 	system_event evt;
-	evt.Type = event_type::KEY_EVENT;
+	evt.Type = system_event_type::KEY_EVT;
 	evt.arg1 = int (translate_key_code(key));
 	evt.arg2 = int (translate_input_action(action));
 	evt.arg3 = int (translate_input_modifier(mods));
 	push_event(&evt);
 }
+
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	static float xPos = xpos;
@@ -131,15 +138,17 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 	mousePos = { float(xpos), float(ypos)};
 	mouseDelta = { float(xpos - xPos) / float(WINDOW_WIDTH), float(-(ypos - yPos)) / float(WINDOW_HEIGHT) };
 	system_event evt;
-	evt.Type = event_type::MOUSE_MOVEMENT_EVENT;
+	evt.Type = system_event_type::MOUSE_MOVEMENT_EVT;
 	push_event(&evt);
 	xPos = xpos;
 	yPos = ypos;
 }
+
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 
 }
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	gContext.windowWidth = width;

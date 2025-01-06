@@ -99,29 +99,6 @@ void set_uniforms(shader_texturedRect & shader, texrect_uniforms & uniforms){
     set_texture(shader.uniformsIDS.texID, uniforms.mainTex, 0);
 }
 
-void set_uniforms(shader_shadowed & shader, shadowed_uniforms & uniforms){
-
-    set_texture(shader.uniformIDS.mainTexID, uniforms.mainTex, 0);
-    set_texture(shader.uniformIDS.shadowMapID, uniforms.shadowMap, 1);
-    set_float3(shader.uniformIDS.diffuseID, uniforms.diffuse);
-    set_float3(shader.uniformIDS.specularID, uniforms.specular);
-    set_float(shader.uniformIDS.shininessID, uniforms.shininess);
-    set_mat4(shader.uniformIDS.modelID, uniforms.model);
-    set_mat4(shader.uniformIDS.viewID, uniforms.view);
-    set_mat4(shader.uniformIDS.modelViewID, uniforms.modelView);
-    set_mat4(shader.uniformIDS.modelViewProjID, uniforms.modelViewProjection);
-    set_mat4(shader.uniformIDS.lightSpaceID, uniforms.lightSpace);
-    set_float3(shader.uniformIDS.cameraPositionID, uniforms.cameraPosition);
-    set_float3(shader.uniformIDS.cameraForwardID, uniforms.cameraForward);
-
-    set_float3(shader.uniformIDS.lightPosID, uniforms.lightPosition);
-    set_float3(shader.uniformIDS.lightColorID, uniforms.lightColor);
-    set_float(shader.uniformIDS.lightStrengthID, uniforms.lightStrength);
-    set_float(shader.uniformIDS.appTimeID, uniforms.time);
-    set_float(shader.uniformIDS.deltaTimeID, uniforms.delta);
-    set_float(shader.uniformIDS.cosTimeID, uniforms.cosTime);
-    set_float(shader.uniformIDS.sinTimeID, uniforms.sinTime);
-}
 
 void set_uniforms(shader_depthPass & shader, depth_Uniforms & uniforms)
 {    

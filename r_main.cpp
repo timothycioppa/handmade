@@ -13,7 +13,6 @@ shader_texturedRect texturedRect;
 texrect_uniforms texRectUniforms;
 
 shader_shadowed standardShadowed;
-shadowed_uniforms shadowedUniforms;
 
 shader_render_lines standardLine;
 line_render_uniforms standardLineUniforms;
@@ -186,21 +185,26 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
         return;
     }
 
-
     renderData.rendered = true;
     bool highlight = IS_HIGHLIGHTED(renderData);
     float scale = highlight ? 10.0f : 1.0f;
 
-    shadowedUniforms.diffuse =      scale * renderData.material.diffuse; 
-    shadowedUniforms.specular =     scale * renderData.material.specular; 
-    shadowedUniforms.shininess =    scale * renderData.material.shininess; 
-    shadowedUniforms.mainTex =      renderData.material.mainTexture->textureID; 
-    shadowedUniforms.model =        renderData.transform.localToWorldMatrix(); 
-    shadowedUniforms.modelView =    context.v * shadowedUniforms.model; 
-    shadowedUniforms.modelViewProjection = context.p * shadowedUniforms.modelView; 
-  
-    set_uniforms(standardShadowed, shadowedUniforms); 
-    render_mesh(quad); 
+    glm::mat4 model = renderData.transform.localToWorldMatrix();
+    glm::mat4 modelView = context.v * model;
+    glm::mat4 modelViewProj = context.p * modelView;
+
+    // material uniforms
+    set_texture(standardShadowed.uniformIDS.mainTexID, renderData.material.mainTexture->textureID, 0);
+    set_float3(standardShadowed.uniformIDS.diffuseID,scale *  renderData.material.diffuse);
+    set_float3(standardShadowed.uniformIDS.specularID, scale * renderData.material.specular);
+    set_float(standardShadowed.uniformIDS.shininessID, scale * renderData.material.shininess);
+
+    // matrix uniforms
+    set_mat4(standardShadowed.uniformIDS.modelID, model);
+    set_mat4(standardShadowed.uniformIDS.modelViewID, modelView);
+    set_mat4(standardShadowed.uniformIDS.modelViewProjID, modelViewProj);
+
+    render_mesh(quad);  
 }
 
 void doRender(const renderable_index & indices, bsp_tree & tree, RenderContext & context) 
@@ -267,22 +271,6 @@ void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext &
 void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
 {
     BIND_SHADER(standardShadowed)
-
-    shadowedUniforms.cameraForward = context.cameraForward;
-    shadowedUniforms.shadowMap = context.shadowMapID;
-    shadowedUniforms.view = context.v;
-    shadowedUniforms.lightSpace = context.lightSpace;
-    shadowedUniforms.lightPosition = context.lightPosition;
-    shadowedUniforms.lightColor = context.lightColor;
-    shadowedUniforms.lightStrength = context.lightPower;
-    shadowedUniforms.cameraPosition = context.cameraPosition;
-    shadowedUniforms.time = context.totalTime;
-    shadowedUniforms.delta = context.deltaTime;
-    shadowedUniforms.cosTime = context.cosTime;
-    shadowedUniforms.sinTime = context.sinTime;
-
-  //  glEnable(GL_CULL_FACE);
-
     char lightBuff[64];
     
     for (int i = 0; i < scene.lightCount; i++) 
@@ -302,16 +290,30 @@ void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
         set_float(posID, l.intensity);
     }
 
+
+    // common uniforms for all objects rendered
+    set_texture(standardShadowed.uniformIDS.shadowMapID,  context.shadowMapID, 1);
+    set_mat4(standardShadowed.uniformIDS.viewID, context.v);
+    set_mat4(standardShadowed.uniformIDS.lightSpaceID, context.lightSpace);
+    set_float3(standardShadowed.uniformIDS.cameraPositionID, context.cameraPosition);
+    set_float3(standardShadowed.uniformIDS.cameraForwardID, context.cameraForward);
+    set_float3(standardShadowed.uniformIDS.lightPosID, context.lightPosition);
+    set_float3(standardShadowed.uniformIDS.lightColorID, context.lightColor);
+    set_float(standardShadowed.uniformIDS.lightStrengthID, context.lightPower);
+    set_float(standardShadowed.uniformIDS.appTimeID, context.totalTime);
+    set_float(standardShadowed.uniformIDS.deltaTimeID,context.deltaTime);
+    set_float(standardShadowed.uniformIDS.cosTimeID, context.cosTime);
+    set_float(standardShadowed.uniformIDS.sinTimeID, context.sinTime);
+
+    glEnable(GL_CULL_FACE);
     render_shadowed_recursive(scene.root, scene, context);
     unbind_shader(); 
- //   glDisable(GL_CULL_FACE);
-
+    glDisable(GL_CULL_FACE);
 }
 
 
 void initFSQ() 
 { 
-
     float quadVertices[] = 
     {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
@@ -329,7 +331,6 @@ void initFSQ()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-
 }
 
 void initializeLineBuffers() 

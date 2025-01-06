@@ -1,6 +1,9 @@
 #include "GAME_main.hpp"
 #include "GameStates/LevelEditor.hpp"
+#define MINIAUDIO_IMPLEMENTATION
+#include "include/miniaudio.h"
 
+ma_engine engine;
 #define MOUSE_MOVE_THRESHOLD 0.001f
 
 void process_keyboard_event(system_event * evt, game_context & context) ;
@@ -14,6 +17,13 @@ void GAME_Initialize()
 { 
 	R_Init(); 		// init rendering system
 	G_Init(); 		// intit game graphics	
+
+    if (ma_engine_init(NULL, &engine) != MA_SUCCESS) 
+    {
+        //return -1;
+    }
+
+    ma_engine_play_sound(&engine, "Sounds/test.wav", NULL);
 
 	gContext.gameRunning = true; 
 	gContext.deltaTime = 0.0f;
@@ -65,17 +75,17 @@ void GAME_ProcessEvent(system_event * evt, game_context & context)
 	
 	switch (evt->Type) 
 	{ 
-		case event_type::KEY_EVENT: 
+		case system_event_type::KEY_EVT: 
 		{
             process_keyboard_event(evt, context);
 		} break;
 		
-		case event_type::MOUSE_BUTTON_EVENT: 
+		case system_event_type::MOUSE_BUTTON_EVT: 
 		{
 			process_mouse_button_event(evt, context);
 		} break;
 		
-		case event_type::MOUSE_MOVEMENT_EVENT: 
+		case system_event_type::MOUSE_MOVEMENT_EVT: 
 		{
             process_mouse_move(evt, context);
 		} break;
@@ -94,6 +104,8 @@ void GAME_PostProcessFrame(game_context & context, float frameTime)
 
 void GAME_Cleanup()
 { 
+    ma_engine_uninit(&engine);
+
 	G_Cleanup();
 	R_Cleanup();
 }
