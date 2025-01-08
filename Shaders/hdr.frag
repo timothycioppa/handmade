@@ -6,6 +6,12 @@ uniform bool hdr;
 uniform float exposure;
 out vec4 FragColor;
 
+float linearize_depth(float d,float zNear,float zFar)
+{
+    float z_n = 2.0 * d - 1.0;
+    return 2.0 * zNear * zFar / (zFar + zNear - z_n * (zFar - zNear));
+}
+
 void main()
 {             
     vec3 hdrColor = texture(hdrBuffer, TexCoords).rgb;    

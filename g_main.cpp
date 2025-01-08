@@ -62,7 +62,8 @@ void G_Cleanup()
 	}
 }
 
-void GenerateHDRColorBuffer() 
+// uses a rendertexture for depth instead of a texture we can access after the HDR pass
+void GenerateHDRColorBuffer_OLD() 
 { 
     unsigned int hdrFBO;
     unsigned int colorBuffer;
@@ -79,9 +80,11 @@ void GenerateHDRColorBuffer()
     glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    
+    // attach color and depth textures 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-    
+         
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) 
     {
         std::cout << "Framebuffer not complete!" << std::endl;
@@ -91,6 +94,51 @@ void GenerateHDRColorBuffer()
 
     hdrColorBufferFB.fbo = hdrFBO;
     hdrColorBufferFB.texture = colorBuffer;
+    hdrColorBufferFB.depthTexture = rboDepth;
+}
+
+void GenerateHDRColorBuffer() 
+{ 
+    unsigned int hdrFBO;
+    unsigned int colorBuffer;
+    unsigned int rboDepth;
+
+    glGenFramebuffers(1, &hdrFBO);
+    
+    glGenTextures(1, &colorBuffer);
+    glBindTexture(GL_TEXTURE_2D, colorBuffer);
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+
+    glGenTextures(1, &rboDepth);
+    glBindTexture(GL_TEXTURE_2D, rboDepth);
+    {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	}
+
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, rboDepth, 0);
+    }
+         
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) 
+    {
+        std::cout << "Framebuffer not complete!" << std::endl;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    hdrColorBufferFB.fbo = hdrFBO;
+    hdrColorBufferFB.texture = colorBuffer;
+    hdrColorBufferFB.depthTexture = rboDepth;
 }
 
 void GenerateShadowDepthBuffer() 
@@ -226,7 +274,6 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
 
 void G_RenderFinalFrame() 
 {
-
     float width = gContext.windowWidth;
     float height = gContext.windowHeight; 
 
@@ -241,7 +288,6 @@ void G_RenderFinalFrame()
     hdrBlitUniforms.exposure = 1.0;
     set_uniforms(fullScreenHDRBlit, hdrBlitUniforms);
     R_RenderFullScreenQuad();
-
 
     unbind_shader();
 }

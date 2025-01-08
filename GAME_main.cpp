@@ -37,7 +37,7 @@ void GAME_Initialize()
 
 	register_game_state(GameState::GAMEPLAY,  &gStateGameplay);
 	register_game_state(GameState::LEVEL_EDITOR,  &gStateLevelEditor);
-    set_initial_state(GameState::LEVEL_EDITOR);
+    set_initial_state(GameState::GAMEPLAY);
 }
 
 #define PROCESS_MOUSE_HELD(button) if ((button).pressed == true) { (button).pressed = false; (button).down = true; }
