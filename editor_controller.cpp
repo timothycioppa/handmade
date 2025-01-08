@@ -8,7 +8,7 @@ void EditorPlayer_Init(game_context * context)
     gEditorPlayer.shouldMove = false;
     gEditorPlayer.Position = {0,1,0};
     gEditorPlayer.Right = {1, 0, 0};
-    gEditorPlayer.Forward = {0, -1, 0};
+    gEditorPlayer.Forward = {0, 1, 0};
     gEditorPlayer.Up = {0, 0, 1};
     gEditorPlayer.WorldUp = {0, 1, 0};
     gEditorPlayer.MovementSpeed = 10.0f;

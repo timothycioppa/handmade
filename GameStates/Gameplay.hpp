@@ -5,6 +5,7 @@
 #include "../game_context.hpp"
 #include "../player.hpp"
 #include "../g_main.hpp"
+#include "../game_audio.hpp"
 
 extern game_state gStateGameplay;
 

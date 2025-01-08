@@ -11,6 +11,8 @@
 
 float lightStrength = 0.5f;
 
+shader_grid editorGrid;
+
 shader_depthPass shadowDepthPass;
 depth_Uniforms shadowDepthUniforms;
 
@@ -36,8 +38,8 @@ void G_Init()
 {
     COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", shadowDepthPass)
     COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
+    COMPILE_SHADER("Shaders/editorGrid.vert", "Shaders/editorGrid.frag", editorGrid);
 
-    
     load_mesh("Models/wall.obj", quadMesh);
     GenerateHDRColorBuffer();
     GenerateShadowDepthBuffer();
@@ -249,7 +251,7 @@ void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data 
     glm::mat4 vp = cam.projection * cam.view;
     glm::vec4 ss =  vp * glm::vec4(_start, 1.0f);
     glm::vec4 ee = vp * glm::vec4(_end, 1.0f);
-    
+
     ss.x = ss.x / ss.w;
     ss.y = ss.y / ss.w;
     ee.x = ee.x / ee.w;
@@ -258,8 +260,22 @@ void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data 
     R_DrawLine(glm::vec2(ss.x, ss.y ), glm::vec2(ee.x , ee.y), color); 
 }
 
+glm::vec2 vertCrosshairStart = glm::vec2(0.0f, -0.05f);
+glm::vec2 vertCrosshairEnd = glm::vec2(0.0f, 0.05f);
+glm::vec2 horCrosshairStart = glm::vec2(-0.05f, 0.0f);
+glm::vec2 horCrosshairEnd = glm::vec2(0.05f, 0.0f);
+glm::vec3 crossColor = glm::vec3(1,0,0);
+
+void draw_crosshairs() 
+{ 
+    float ar = gContext.aspectRatio;
+    R_DrawLine(horCrosshairStart, horCrosshairEnd, crossColor);
+    R_DrawLine(vertCrosshairStart * ar, vertCrosshairEnd * ar, crossColor);    
+}
+
 void G_RenderSceneShadowedFull(bsp_tree & scene) 
 {
+    draw_crosshairs();
 	G_StartFrame();
     G_RenderShadowDepth(scene); 
     G_RenderToHDRColorBuffer(scene); 
@@ -278,9 +294,32 @@ void G_RenderOverlay()
     R_DrawText(text, 0, 0, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f), GameFont::Anton);
 }
 
-void G_RenderLevelEditor() 
+void G_RenderEditorGrid(editor_render_context & rendercontext) 
 { 
+    float width = gContext.windowWidth;
+    float height = gContext.windowHeight; 
+
+    glViewport(0, 0, width , height );
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(0.0f, 0.1f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+    
+    BIND_SHADER(editorGrid);
+    glm::vec3 & position = rendercontext.cameraPosition;
+    glm::mat4 & clipToWorld = rendercontext.clipToWorld;
+
+    glUniform2f(glGetUniformLocation(editorGrid.shader.programID, "cameraPosition"),position.x, position.z);
+
+    glUniformMatrix4fv(
+        glGetUniformLocation(editorGrid.shader.programID, "clipToWorld"), 
+        1, GL_FALSE, &clipToWorld[0][0]);
+
+    R_RenderFullScreenQuad();
+    unbind_shader();
+}
+
+void G_RenderLevelEditor(editor_render_context & renderContext) 
+{ 
+    G_RenderEditorGrid(renderContext);
     R_DrawLines();  
 }

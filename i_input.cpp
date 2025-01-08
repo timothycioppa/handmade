@@ -5,7 +5,6 @@ system_event eventQueue[MAXEVENTS];
 unsigned int head = 0;
 unsigned int tail = 0;
 
-
 void push_event(system_event * evt)
 {
     eventQueue[head] = *evt;            

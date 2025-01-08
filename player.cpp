@@ -2,15 +2,17 @@
 #include "game_data.hpp"
 #include "math_utils.hpp"
 #include <stdio.h>
+#include "include/glm/gtc/quaternion.hpp"
+
+
 player_data main_player;
 
 void update_view_matrix(player_data* player)
 { 
+    float yawRad = glm::radians(player->Horizontal);
+    float pitchRad = glm::radians(player->Vertical);
     glm::vec3 front;
-
-    float yawRad = glm::radians(player->Yaw);
-    float pitchRad = glm::radians(player->Pitch);
-
+    
     front.x = cos(yawRad) * cos(pitchRad);
     front.y = sin(pitchRad);
     front.z = sin(yawRad) * cos(pitchRad);
@@ -18,21 +20,28 @@ void update_view_matrix(player_data* player)
     player->Forward = glm::normalize(front);
     player->Right = glm::normalize(glm::cross(player->Forward, player->WorldUp));  
     player->Up    = glm::normalize(glm::cross(player->Right, player->Forward));
-
-    player->camData.view = glm::lookAt(player->Position, player->Position + player->Forward, {0,1,0});
-        
+    player->camData.view =  glm::lookAt(player->Position, player->Position + player->Forward, {0,1,0});        
 }
 
 void Player_Init(game_context * context) 
 { 
-    main_player.Pitch = 0.0f;
-    main_player.Yaw = 0.0f;
+    main_player.Horizontal = 0.0f;
+    main_player.Vertical = 0.0f;
     main_player.MovementSpeed = 15.0f;
     main_player.LookSpeed = 200.0f;
     main_player.Position = {0,2,0};
+    
+    main_player.boundingBox = 
+    {
+        glm::vec3(0, 1.5f, 0),
+        glm::vec3(1, 1.5f, 1)
+    };
+
     main_player.WorldUp = {0,1,0};
     main_player.Jumping = false;
     main_player.camData.projection = glm::perspective(glm::radians(45.0f), (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT, 0.1f, 200.0f);
+
+  
     update_view_matrix(&main_player);
 }
 
@@ -53,10 +62,9 @@ void Player_UpdateView(game_context * context)
     xoffset *= main_player.LookSpeed;
     yoffset *= main_player.LookSpeed;
 
-    main_player.Yaw   += xoffset;
-    main_player.Pitch += yoffset;
-    CLAMPF(main_player.Pitch, -89.0f, 89.0f)
-
+    main_player.Horizontal   += xoffset;
+    main_player.Vertical += yoffset;
+    CLAMPF(main_player.Vertical, -89.0f, 89.0f)
     update_view_matrix(&main_player);
 }
 
@@ -100,8 +108,10 @@ void Player_UpdatePosition( game_context * context)
 { 
     if (sqrMag(main_player.MoveDir) > 0.1f) 
     { 
-            float velocity = main_player.MovementSpeed * (context->deltaTime);
-            main_player.Position += velocity * main_player.MoveDir;
-            main_player.camData.view = glm::lookAt(main_player.Position, main_player.Position + main_player.Forward, {0,1,0});
+        float velocity = main_player.MovementSpeed * (context->deltaTime);
+        main_player.Position += velocity * main_player.MoveDir;
+        main_player.camData.view = glm::lookAt(main_player.Position, main_player.Position + main_player.Forward, main_player.Up);
+        main_player.boundingBox.center = main_player.Position;
+        main_player.boundingBox.center.y -= 0.5f;
     } 
 }

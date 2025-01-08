@@ -29,6 +29,7 @@ GAMESTATE_INIT(Gameplay)
     build_bsp_tree(scene);
     ValidateTextures(scene);
 	Player_Init(&context);
+    Audio_LoopSound(SoundCode::BACKGROUND_MUSIC);
 }
 
 GAMESTATE_UPDATE(Gameplay)
@@ -44,7 +45,7 @@ GAMESTATE_UPDATE(Gameplay)
     if (bsp_raycast(main_player.Position, main_player.Forward, hit, scene)) 
     {         
         set_hit_highlighted();
-        debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
+   //   debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
     }
 
     // handle jumping
@@ -67,8 +68,7 @@ GAMESTATE_UPDATE(Gameplay)
     {   
         float t = main_player.FallTimer;        
         main_player.Position.y = initialYValueFalling - t * t * 9.8f;     
-        main_player.camData.view = glm::lookAt(main_player.Position, main_player.Position + main_player.Forward, {0,1,0});
-        
+        main_player.camData.view = glm::lookAt(main_player.Position, main_player.Position + main_player.Forward, {0,1,0});        
         main_player.FallTimer += context.deltaTime;
 
         if (main_player.Position.y < targetHeightFalling) 
@@ -95,14 +95,27 @@ GAMESTATE_UPDATE(Gameplay)
     // collision detection and movement
     if (sqrMag(main_player.MoveDir) > 0.1f) 
     { 
+        if (!main_player.Moving) 
+        {
+            main_player.Moving = true;
+            Audio_LoopSound(SoundCode::PLAYER_RUN);
+        }
+
         glm::vec3 testPos = main_player.Position + WALL_TEST_THRESHOLD * main_player.MoveDir;
 
-        if (test_pos_bsp(testPos, scene)) 
+         if (test_pos_bsp(testPos, scene)) 
          { 
             Player_UpdatePosition(&context);	
         }      
+    } 
+    else  
+    { 
+        if (main_player.Moving) 
+        {
+            main_player.Moving = false;
+            Audio_StopSound(SoundCode::PLAYER_RUN);
+        }
     }
-
 
     // jump if not falling or alreading jumping
     if (key_pressed(KeyCodes::KEY_SPACE)) 
@@ -113,8 +126,11 @@ GAMESTATE_UPDATE(Gameplay)
             main_player.JumpTimer = 0.0f; 
             initialYValue = main_player.Position.y;        
             targetHeight = initialYValue;
+          
+            Audio_PlaySound(SoundCode::PLAYER_JUMP);
         }  
     }     
+
 }
 
 GAMESTATE_RENDER(Gameplay)
@@ -129,77 +145,75 @@ GAMESTATE_POSTRENDER(Gameplay)
 
 GAMESTATE_EDITOR(Gameplay)
 {
-    #ifdef ASDF
 
- 
-   playerStats();
+static char buff[128];
 
-    static char buff[128];
-
-    ImGui::Begin("Tree data"); 
+  // playerStats();
 
 
-        ImGui::Text("Num nodes: %d", scene.numNodes);
+    // ImGui::Begin("Tree data"); 
 
-        for (int i = 0; i < scene.numNodes; i++) {ImGui::PushID(i);
-            sprintf(buff, "node[%d]", i);
-            bsp_node & node = scene.nodes[i];
 
-            if (ImGui::CollapsingHeader(buff))
-            {
-                NodeType type = FEATURE_TYPE(&node);
-                int index = FEATURE_INDEX(&node);  
-                ImGui::Text("Type: {%s}", type == NodeType::SECTOR ? sectortype : solidsegmenttype);
-                ImGui::Text("FeatureID: {%d}", index);
+    //     ImGui::Text("Num nodes: %d", scene.numNodes);
 
-                switch(type)
-                {
-                    case NodeType::SECTOR: 
-                    {
-                        sector & sect = scene.sectors[index];
-                        ImGui::Text("rend: %d %d", sect.renderIndices.renderableIndex0, sect.renderIndices.renderableIndex1);
-                    } break;
-                    case NodeType::WALL_SEGMENT: 
-                    {
-                        wall_segment & seg = scene.segments[index];                        
-                        ImGui::Text("rend: %d %d", seg.renderIndices.renderableIndex0, seg.renderIndices.renderableIndex1);
-                    } break;
-                }
+    //     for (int i = 0; i < scene.numNodes; i++) {ImGui::PushID(i);
+    //         sprintf(buff, "node[%d]", i);
+    //         bsp_node & node = scene.nodes[i];
 
-                if (node.back == nullptr) 
-                {
-                    ImGui::Text("back: NULL");
-                } 
-                else
-                {
-                    ImGui::Text("back: {%d}", node.back->featureIndex.ID);
-                }
+    //         if (ImGui::CollapsingHeader(buff))
+    //         {
+    //             NodeType type = FEATURE_TYPE(&node);
+    //             int index = FEATURE_INDEX(&node);  
+    //             ImGui::Text("Type: {%s}", type == NodeType::SECTOR ? sectortype : solidsegmenttype);
+    //             ImGui::Text("FeatureID: {%d}", index);
 
-                if (node.front == nullptr) 
-                {
-                    ImGui::Text("front: NULL");
-                } 
-                else
-                {
-                    ImGui::Text("front: {%d}", node.front->featureIndex.ID);
-                }
+    //             switch(type)
+    //             {
+    //                 case NodeType::SECTOR: 
+    //                 {
+    //                     sector & sect = scene.sectors[index];
+    //                     ImGui::Text("rend: %d %d", sect.renderIndices.renderableIndex0, sect.renderIndices.renderableIndex1);
+    //                 } break;
+    //                 case NodeType::WALL_SEGMENT: 
+    //                 {
+    //                     wall_segment & seg = scene.segments[index];                        
+    //                     ImGui::Text("rend: %d %d", seg.renderIndices.renderableIndex0, seg.renderIndices.renderableIndex1);
+    //                 } break;
+    //             }
+
+    //             if (node.back == nullptr) 
+    //             {
+    //                 ImGui::Text("back: NULL");
+    //             } 
+    //             else
+    //             {
+    //                 ImGui::Text("back: {%d}", node.back->featureIndex.ID);
+    //             }
+
+    //             if (node.front == nullptr) 
+    //             {
+    //                 ImGui::Text("front: NULL");
+    //             } 
+    //             else
+    //             {
+    //                 ImGui::Text("front: {%d}", node.front->featureIndex.ID);
+    //             }
 
                 
-            }
-        ImGui::PopID();}    
+    //         }
+    //     ImGui::PopID();}    
     
-    ImGui::End();
+    // ImGui::End();
 
-    switch (hit.RenderType) 
-    {
-        case RenderableType::RT_CEILING: { ImGui::Text("ceiling");} break;
-        case RenderableType::RT_FLOOR: { ImGui::Text("floor");} break;
-        case RenderableType::RT_SOLID_WALL: { ImGui::Text("solid");} break;
-        case RenderableType::RT_WALL_TOP_SEGMENT: { ImGui::Text("top");} break;
-        case RenderableType::RT_WALL_BOTTOM_SEGMENT: { ImGui::Text("bot");} break;
-    }
+    // switch (hit.RenderType) 
+    // {
+    //     case RenderableType::RT_CEILING: { ImGui::Text("ceiling");} break;
+    //     case RenderableType::RT_FLOOR: { ImGui::Text("floor");} break;
+    //     case RenderableType::RT_SOLID_WALL: { ImGui::Text("solid");} break;
+    //     case RenderableType::RT_WALL_TOP_SEGMENT: { ImGui::Text("top");} break;
+    //     case RenderableType::RT_WALL_BOTTOM_SEGMENT: { ImGui::Text("bot");} break;
+    // }
    
-
     // if (hit.featureID > -1)
     // {
 
@@ -218,11 +232,24 @@ GAMESTATE_EDITOR(Gameplay)
 
     // }
 
+    ImGui::Begin("player");    
+        glm::vec3 p = main_player.Position;
+        glm::vec3 f = main_player.Forward;
+        glm::vec3 r = main_player.Right;
+        glm::vec3 u = main_player.Up;
+        glm::vec3 m = main_player.MoveDir;
 
 
+        ImGui::Text("Position: %g %g %g", p.x, p.y, p.z );
+        ImGui::Text("Forward: %g %g %g", f.x, f.y, f.z );
+        ImGui::Text("Right: %g %g %g", r.x, r.y, r.z );
+        ImGui::Text("Up: %g %g %g", u.x, u.y, u.z );
+        ImGui::Text("Movedir: %g %g %g", m.x, m.y, m.z );
 
-    ImGui::Begin("lights");
-    
+
+    ImGui::End();
+
+    ImGui::Begin("lights");    
     for (int i = 0; i < 3; i++) {
         
         ImGui::PushID(i);
@@ -246,8 +273,6 @@ GAMESTATE_EDITOR(Gameplay)
         ImGui::PopID();
     }
     ImGui::End();
-
-#endif
 }
 
 GAMESTATE_DESTROY(Gameplay)

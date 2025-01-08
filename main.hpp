@@ -8,6 +8,7 @@
 #include "Graphics/GLTexture.hpp"
 #include "Graphics/GLTextRenderer.hpp"
 #include "game_data.hpp"
+#include "edtitor_main.hpp"
 
 #define DEBUGQUAD 0
 

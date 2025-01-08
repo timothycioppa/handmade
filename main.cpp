@@ -1,12 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "main.hpp"
-#include "edtitor_main.hpp"
 
 #define TARGET_FPS 90.0f
 #define LIMIT_FRAMERATE 0
 #define WAIT_UNTIL(time) while (glfwGetTime() < time) {}
-
 
 int main(int argc, char** argv)
 {
@@ -153,6 +151,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	gContext.windowWidth = width;
 	gContext.windowHeight = height;
+	gContext.aspectRatio = width / height;
 	
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.

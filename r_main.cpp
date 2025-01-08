@@ -187,7 +187,7 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
 
     renderData.rendered = true;
     bool highlight = IS_HIGHLIGHTED(renderData);
-    float scale = highlight ? 10.0f : 1.0f;
+    float scale = highlight ? 100.0f : 1.0f;
 
     glm::mat4 model = renderData.transform.localToWorldMatrix();
     glm::mat4 modelView = context.v * model;
@@ -199,7 +199,6 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
     set_float3(standardShadowed.uniformIDS.specularID, scale * renderData.material.specular);
     set_float(standardShadowed.uniformIDS.shininessID, scale * renderData.material.shininess);
 
-    // matrix uniforms
     set_mat4(standardShadowed.uniformIDS.modelID, model);
     set_mat4(standardShadowed.uniformIDS.modelViewID, modelView);
     set_mat4(standardShadowed.uniformIDS.modelViewProjID, modelViewProj);

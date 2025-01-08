@@ -72,12 +72,17 @@ float ShadowCalculation(vec4 fragPosLightSpace)
     return shadow;
 }
 
-float calculateFog(vec3 pos) {
-    
+float calculateFog(vec3 pos) 
+{    
+    float exposure = 5f;
     float _dist = abs(dot(pos - unity_CameraPosition, unity_CameraForward)) / length(unity_CameraForward); 
     float maxDist = 75.0f;
-   return  clamp(1.0f - _dist / maxDist, 0.0f, 1.0f);
+    float fog = exp(-(exposure / 100.0f) *  _dist);
+    return fog;
 }
+
+#define NUM_LIGHTS 3
+
 
 void main()
 {          
@@ -90,26 +95,26 @@ void main()
     vec3 result = vec3(0,0,0);
 
     int i = 0;
-    //for (int i = 0; i < 1; i++) 
+
+    for (int i = 0; i < NUM_LIGHTS; i++) 
     { 
         vec3 dLight = lights[i].position - fs_in.FragPos;
         float invSqDist = 1.0f / (dLight.x * dLight.x + dLight.y * dLight.y + dLight.z * dLight.z);
         float dist = distance(lights[i].position, fs_in.FragPos);
-        vec3 lightDir = normalize(lights[i].position - fs_in.FragPos);        
+        vec3 lightDir = normalize(dLight);                
         float diffuseValue = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diffuseValue * lights[i].color;          
+        vec3 diffuse = diffuseValue * material.diffuse;          
         vec3 reflectDir = reflect(-lightDir, norm);  
         float specValue = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-        vec3 specular = specValue * lights[i].color; 
+        vec3 specular = specValue * lights[i].color;      
         result += lights[i].intensity * (diffuse + specular) * invSqDist;     
     }
 
-
     float fog = calculateFog(fs_in.FragPos);
-
     float minShadow = 0.2f;
     float remappedShadow = minShadow + (1.0f - minShadow) * (1.0f - shadowValue);
-    vec3 finalColor = (remappedShadow * (lightAmbient + result)) * texCol * material.diffuse;
-    finalColor *= fog;
-    FragColor = vec4(finalColor, 1.0);
+    float multiplier = fog * remappedShadow;
+    vec3 finalColor = lightAmbient + result;
+    finalColor *= texCol;
+    FragColor = vec4(multiplier * finalColor, 1.0);
 }

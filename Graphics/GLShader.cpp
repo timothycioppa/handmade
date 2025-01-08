@@ -21,6 +21,11 @@ void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms)
     set_float(shader.uniformIDS.exposure, uniforms.exposure);
 }
 
+void shader_init_uniforms(shader_grid & shader) 
+{
+    unsigned int pID = shader.shader.programID;
+}
+
 
 void shader_init_uniforms(shader_shadowed & shader) 
 {

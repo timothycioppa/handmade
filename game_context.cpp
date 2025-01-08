@@ -9,13 +9,11 @@ bool key_pressed(KeyCodes key)
 }
 
 bool key_held(KeyCodes key) { 
-        return gContext.key_states[int(key)].down;
-
+    return gContext.key_states[int(key)].down;
 }
 
 bool key_released(KeyCodes key) { 
-            return gContext.key_states[int(key)].released;
-
+    return gContext.key_states[int(key)].released;
 }
 
 bool mouse_button_pressed(MouseButtons button) {
@@ -24,8 +22,7 @@ bool mouse_button_pressed(MouseButtons button) {
         case MouseButtons::M_LEFT: { return gContext.left.pressed; }
         case MouseButtons::M_RIGHT: { return gContext.right.pressed; }
         case MouseButtons::M_MIDDLE: { return gContext.middle.pressed; }
-    }
-    
+    } 
     return false;
 }
 
@@ -37,17 +34,14 @@ bool mouse_button_held(MouseButtons button) {
         case MouseButtons::M_MIDDLE: { return gContext.middle.down; }
     }
     return false;
-
 }
 
 bool mouse_button_released(MouseButtons button) {
-  switch (button) 
+    switch (button) 
     {
         case MouseButtons::M_LEFT: { return gContext.left.released; }
         case MouseButtons::M_RIGHT: { return gContext.right.released; }
         case MouseButtons::M_MIDDLE: { return gContext.middle.released; }
     }
-    
     return false;
-
 }

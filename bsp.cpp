@@ -260,7 +260,6 @@ void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_
     glm::vec3 lookAt = origin + segment.normal;
     glm::vec3 up = {0,1,0};
 
-
     wall.transform.localToWorld = glm::scale(glm::mat4(1.0f),{wallWidth, wallHeight, 1.0f});
     wall.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * wall.transform.localToWorld;
     wall.transform.dirty = false;
@@ -384,8 +383,7 @@ void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree 
 
     ceiling.transform.localToWorld = glm::scale(glm::mat4(1.0f),{s.width, s.height, 1.0f});
     ceiling.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * ceiling.transform.localToWorld;
-    ceiling.transform.dirty = false;
-
+    ceiling.transform.dirty = false;    
 }
 
 unsigned int required_renderables(wall_segment & segment) 

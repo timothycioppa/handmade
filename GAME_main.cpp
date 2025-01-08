@@ -1,9 +1,7 @@
 #include "GAME_main.hpp"
-#include "GameStates/LevelEditor.hpp"
-#define MINIAUDIO_IMPLEMENTATION
-#include "include/miniaudio.h"
+#include "GameStates/LevelEditor/LevelEditor.hpp"
+#include "game_audio.hpp"
 
-ma_engine engine;
 #define MOUSE_MOVE_THRESHOLD 0.001f
 
 void process_keyboard_event(system_event * evt, game_context & context) ;
@@ -17,23 +15,18 @@ void GAME_Initialize()
 { 
 	R_Init(); 		// init rendering system
 	G_Init(); 		// intit game graphics	
-
-    if (ma_engine_init(NULL, &engine) != MA_SUCCESS) 
-    {
-        //return -1;
-    }
-
-    ma_engine_play_sound(&engine, "Sounds/test.wav", NULL);
-
+    Audio_Init();
+   
 	gContext.gameRunning = true; 
 	gContext.deltaTime = 0.0f;
 	gContext.applicationTime = 0.0f;
 	gContext.sinTime = (float) sin(gContext.applicationTime);
 	gContext.cosTime = (float) cos(gContext.applicationTime);
+    
     gContext.windowWidth = WINDOW_WIDTH;
     gContext.windowHeight = WINDOW_HEIGHT;
+    gContext.aspectRatio = float(WINDOW_WIDTH) / float(WINDOW_HEIGHT);
     
-
     for (int i = 0; i < NUM_KEY_CODES; i++) 
     { 
         key_state & state = gContext.key_states[i];
@@ -44,12 +37,24 @@ void GAME_Initialize()
 
 	register_game_state(GameState::GAMEPLAY,  &gStateGameplay);
 	register_game_state(GameState::LEVEL_EDITOR,  &gStateLevelEditor);
-    set_initial_state(GameState::GAMEPLAY);
+    set_initial_state(GameState::LEVEL_EDITOR);
 }
+
+#define PROCESS_MOUSE_HELD(button) if ((button).pressed == true) { (button).pressed = false; (button).down = true; }
 
 // a single frame tick of the game
 void GAME_ProcessFrame(game_context & context) 
 { 
+    // make sure if we pressed last frame, we clear it and set the down flag
+    PROCESS_MOUSE_HELD(context.left)
+    PROCESS_MOUSE_HELD(context.middle)
+    PROCESS_MOUSE_HELD(context.right)
+
+    // make sure if we released last frame, we clear that flag
+    context.left.released = false;
+    context.right.released = false;
+    context.middle.released = false;
+
     // handle all queued events
     system_event * evt = nullptr;
 
@@ -67,6 +72,8 @@ void GAME_ProcessFrame(game_context & context)
     #ifdef EDITOR_DEBUG
         gCurrentGameState->Editor(context);
     #endif
+
+    Audio_PlayAllSounds();
 }
 
 void GAME_ProcessEvent(system_event * evt, game_context & context) 
@@ -104,8 +111,7 @@ void GAME_PostProcessFrame(game_context & context, float frameTime)
 
 void GAME_Cleanup()
 { 
-    ma_engine_uninit(&engine);
-
+    Audio_Shutdown();
 	G_Cleanup();
 	R_Cleanup();
 }
@@ -136,10 +142,11 @@ void process_keyboard_event(system_event * evt, game_context & context)
 
 void process_mouse_button_event(system_event * evt, game_context & context) 
 { 
+   
     MouseButtons button = MouseButtons (evt->arg1);			
     ButtonActions action = ButtonActions(evt->arg2);
     InputModifiers mod = InputModifiers(evt->arg3);
-
+   
     context.left.pressed = false;
     context.right.pressed = false;
     context.middle.pressed = false;
@@ -150,21 +157,22 @@ void process_mouse_button_event(system_event * evt, game_context & context)
     switch (button) {
         case MouseButtons::M_LEFT: 
         { 
-            if (action == ButtonActions::A_PRESSED) { gContext.left.pressed = true; gContext.left.down = true;  } 
-            if (action == ButtonActions::A_RELEASED) { gContext.left.released = true; gContext.left.down = false; } break;   
+            if (action == ButtonActions::A_PRESSED) { gContext.left.pressed = true;  } 
+            if (action == ButtonActions::A_RELEASED) { gContext.left.released = true; gContext.left.down = false; }   
         }break;
 
         case MouseButtons::M_MIDDLE: 
         { 
-            if (action == ButtonActions::A_PRESSED) { gContext.middle.pressed = true; gContext.middle.down = true;  } 
-            if (action == ButtonActions::A_RELEASED) { gContext.middle.released = true; gContext.middle.down = false; } break;   
+            if (action == ButtonActions::A_PRESSED) { gContext.middle.pressed = true;  } 
+            if (action == ButtonActions::A_RELEASED) { gContext.middle.released = true; gContext.middle.down = false; }   
         }break;
 
           case MouseButtons::M_RIGHT: 
         { 
-            if (action == ButtonActions::A_PRESSED) { gContext.right.pressed = true; gContext.right.down = true;  } 
-            if (action == ButtonActions::A_RELEASED) { gContext.right.released = true; gContext.right.down = false; } break;   
-        }break;
+            if (action == ButtonActions::A_PRESSED) { gContext.right.pressed = true; } 
+            if (action == ButtonActions::A_RELEASED) { gContext.right.released = true; gContext.right.down = false; }    
+        }
+        break;
     } 
 }
 

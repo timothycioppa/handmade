@@ -137,6 +137,15 @@ struct shader_depthPass
     } uniformsIDS;
 
 };
+
+struct shader_grid 
+{ 
+    compiled_shader shader;
+    struct { 
+       
+    } uniformsIDS;
+};
+
 struct shader_fullscreenBlit { 
     compiled_shader shader;
     struct { 
@@ -152,6 +161,7 @@ struct shader_text_rendering {
     } uniformIDS;
 };
 
+void shader_init_uniforms(shader_grid & shader);
 void shader_init_uniforms(shader_fullscreenBlit & shader);
 void shader_init_uniforms(shader_shadowed & shader) ;
 void shader_init_uniforms(shader_texturedRect & shader) ;
