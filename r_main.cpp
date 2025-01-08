@@ -289,7 +289,6 @@ void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
         set_float(posID, l.intensity);
     }
 
-
     // common uniforms for all objects rendered
     set_texture(standardShadowed.uniformIDS.shadowMapID,  context.shadowMapID, 1);
     set_mat4(standardShadowed.uniformIDS.viewID, context.v);

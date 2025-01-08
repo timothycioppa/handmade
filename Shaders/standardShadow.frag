@@ -1,5 +1,7 @@
 #version 330 core
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec3 FragNormal;
+layout (location = 2) out vec3 FragPosition;
 
 in VS_OUT 
 {
@@ -116,5 +118,8 @@ void main()
     float multiplier = fog * remappedShadow;
     vec3 finalColor = lightAmbient + result;
     finalColor *= texCol;
+
     FragColor = vec4(multiplier * finalColor, 1.0);
+    FragNormal = 0.5f * (norm + 1.5f);
+    FragPosition = fs_in.FragPos.xyz;
 }

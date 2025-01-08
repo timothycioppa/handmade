@@ -141,8 +141,10 @@ struct shader_depthPass
 struct shader_grid 
 { 
     compiled_shader shader;
-    struct { 
-       
+    struct 
+    { 
+       unsigned int cameraPosition;
+       unsigned int clipToWorld;
     } uniformsIDS;
 };
 

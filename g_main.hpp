@@ -23,6 +23,8 @@ struct FrameBufferInfo
 	unsigned int fbo;
 	unsigned int texture;
 	unsigned int depthTexture;
+	unsigned int normalTexture;
+	unsigned int positionTexture;
 };
 
 extern float lightStrength;

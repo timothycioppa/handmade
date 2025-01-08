@@ -24,6 +24,8 @@ void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms)
 void shader_init_uniforms(shader_grid & shader) 
 {
     unsigned int pID = shader.shader.programID;
+    shader.uniformsIDS.cameraPosition =  glGetUniformLocation(pID, "cameraPosition");
+    shader.uniformsIDS.clipToWorld =  glGetUniformLocation(pID, "clipToWorld");
 }
 
 
