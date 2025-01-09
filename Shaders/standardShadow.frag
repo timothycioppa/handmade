@@ -90,7 +90,7 @@ void main()
 {          
     float shadowValue = ShadowCalculation(fs_in.FragPosLightSpace);
     vec3 texCol = texture(material.mainTex, fs_in.TexCoords).rgb; 
-    float ambientFactor = 0.1f;
+    float ambientFactor = 1.0f;
     vec3 lightAmbient = ambientFactor *  lightColor;
     vec3 norm = normalize(fs_in.Normal);
     vec3 viewDir = normalize(unity_CameraPosition - fs_in.FragPos);

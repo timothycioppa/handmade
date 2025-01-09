@@ -48,7 +48,7 @@ void G_StartFrame();
 void G_RenderShadowDepth(bsp_tree&);
 void G_RenderToHDRColorBuffer(bsp_tree&);
 void G_RenderSceneShadowedFull(bsp_tree&);
-
+void G_RenderTitleScreen();
 void G_RenderLevelEditor(editor_render_context & renderContext) ;
 void G_RenderOverlay();
 void G_Cleanup();

@@ -1,5 +1,6 @@
 #include "GAME_main.hpp"
 #include "GameStates/LevelEditor/LevelEditor.hpp"
+#include "GameStates/TitleScreen/TitleScreen.hpp"
 #include "game_audio.hpp"
 
 #define MOUSE_MOVE_THRESHOLD 0.001f
@@ -35,9 +36,12 @@ void GAME_Initialize()
         state.released = false;
     }
 
+	register_game_state(GameState::TITLE_SCREEN,  &gTitleScreenState);
 	register_game_state(GameState::GAMEPLAY,  &gStateGameplay);
 	register_game_state(GameState::LEVEL_EDITOR,  &gStateLevelEditor);
-    set_initial_state(GameState::GAMEPLAY);
+    
+    set_initial_state(INITIAL_STATE);
+
 }
 
 #define PROCESS_MOUSE_HELD(button) if ((button).pressed == true) { (button).pressed = false; (button).down = true; }

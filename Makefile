@@ -1,9 +1,9 @@
 INCLUDES=-Iinclude -Iinclude/GL -Iinclude/glad -Iinlude/glfw -Iinclude/glm -Iinclude/freetype
 LIBS= freetype.dll glad.a libglfw3.a imgui.a -lopengl32  -lgdi32
 
-BASE_FLAGS=
+BASE_FLAGS=-DGLM_FORCE_LEFT_HANDED
 DEBUG_FLAGS=-DEDITOR_DEBUG
-ALLOBJECTS=build/obj/main.o build/obj/bsp.o build/obj/bsp_collision.o build/obj/editor_controller.o build/obj/editor_main.o build/obj/g_main.o build/obj/game_context.o build/obj/GAME_main.o build/obj/game_state.o build/obj/i_input.o build/obj/light.o build/obj/math_utils.o build/obj/player.o build/obj/r_main.o build/obj/scene_object.o build/obj/scene_parser.o build/obj/utils.o build/obj/GLMesh.o build/obj/GLShader.o build/obj/GLTextRenderer.o build/obj/GLTexture.o build/obj/LevelEditor.o build/obj/Gameplay.o build/obj/game_audio.o
+ALLOBJECTS=build/obj/main.o build/obj/bsp.o build/obj/bsp_collision.o build/obj/editor_controller.o build/obj/editor_main.o build/obj/g_main.o build/obj/game_context.o build/obj/GAME_main.o build/obj/game_state.o build/obj/i_input.o build/obj/light.o build/obj/math_utils.o build/obj/player.o build/obj/r_main.o build/obj/scene_object.o build/obj/scene_parser.o build/obj/utils.o build/obj/GLMesh.o build/obj/GLShader.o build/obj/GLTextRenderer.o build/obj/GLTexture.o build/obj/LevelEditor.o  build/obj/TitleScreen.o build/obj/Gameplay.o build/obj/game_audio.o
 
 all: executable
 debug: BASE_FLAGS += $(DEBUG_FLAGS)
@@ -36,7 +36,7 @@ build/obj/g_main.o: g_main.cpp g_main.hpp
 build/obj/game_context.o: game_context.cpp game_context.hpp
 	g++ $(BASE_FLAGS) -c game_context.cpp -o build/obj/game_context.o $(INCLUDES)
 
-build/obj/GAME_main.o: GAME_main.cpp GAME_main.hpp
+build/obj/GAME_main.o: GAME_main.cpp GAME_main.hpp game_data.hpp
 	g++ $(BASE_FLAGS) -c GAME_main.cpp -o build/obj/GAME_main.o $(INCLUDES) 
 
 build/obj/game_state.o: game_state.cpp game_state.hpp
@@ -78,11 +78,14 @@ build/obj/GLTextRenderer.o: Graphics/GLTextRenderer.cpp Graphics/GLTextRenderer.
 build/obj/GLTexture.o: Graphics/GLTexture.cpp Graphics/GLTexture.hpp
 	g++ $(BASE_FLAGS) -c Graphics/GLTexture.cpp -o build/obj/GLTexture.o $(INCLUDES) 
 
-build/obj/Gameplay.o: GameStates/Gameplay.cpp GameStates/Gameplay.hpp
+build/obj/Gameplay.o: GameStates/Gameplay.cpp GameStates/Gameplay.hpp game_data.hpp
 	g++ $(BASE_FLAGS) -c GameStates/Gameplay.cpp -o build/obj/Gameplay.o $(INCLUDES)
 
 build/obj/LevelEditor.o: GameStates/LevelEditor/LevelEditor.cpp GameStates/LevelEditor/LevelEditor.hpp
 	g++ $(BASE_FLAGS) -c GameStates/LevelEditor/LevelEditor.cpp -o build/obj/LevelEditor.o $(INCLUDES)
+
+build/obj/TitleScreen.o: GameStates/TitleScreen/TitleScreen.cpp GameStates/TitleScreen/TitleScreen.hpp
+	g++ $(BASE_FLAGS) -c GameStates/TitleScreen/TitleScreen.cpp -o build/obj/TitleScreen.o $(INCLUDES)
 
 build/obj/game_audio.o: game_audio.cpp game_audio.hpp audio_data.hpp
 	g++ $(BASE_FLAGS) -c game_audio.cpp -o build/obj/game_audio.o $(INCLUDES)	

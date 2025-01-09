@@ -21,6 +21,13 @@ void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms)
     set_float(shader.uniformIDS.exposure, uniforms.exposure);
 }
 
+void shader_init_uniforms(shader_blur & shader) 
+{
+    unsigned int pID = shader.shader.programID;
+    shader.uniformsIDS.colorBuffer =  glGetUniformLocation(pID, "colorBuffer");
+}
+
+
 void shader_init_uniforms(shader_grid & shader) 
 {
     unsigned int pID = shader.shader.programID;

@@ -10,6 +10,9 @@
 #define PV3(v) printf("(%g %g %g)\n", v.x, v.y, v.z)
 #define PV4(v) printf("(%g %g %g %g)\n", v.x, v.y, v.z, v.w)
 
+#define MAX_EDITOR_SECTORS 100
+#define MAX_EDITOR_SEGMENTS 400
+
 enum hover_type 
 { 
     wall_segment, 
@@ -35,7 +38,8 @@ struct hover_data
 enum placement_mode 
 { 
     free_mode = 0,
-    dragging_wall_segment = 1
+    dragging_wall_segment = 1,
+    idle_mode = 2
 };
 
 struct placement_data 
@@ -50,6 +54,8 @@ struct sector_e
 { 
     glm::vec3 startCorner;
     glm::vec3 endCorner;
+    float width;
+    float height;
     glm::vec3 botColor, leftColor, topColor, rightColor;
     int botSegmentID, leftSegmentID, topSegmentID, rightSegmentID;
 };
@@ -72,6 +78,8 @@ struct placement_mode_state
     PlacementModeCallback OnUpdate;
     PlacementModeCallback OnEnd;
 };
+
+#define PLACEMENT_STATE_FUNC(name) void name(placement_data* pData)
 
 extern game_state gStateLevelEditor;
 

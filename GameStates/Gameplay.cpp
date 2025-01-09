@@ -25,7 +25,7 @@ void set_hit_highlighted();
 
 GAMESTATE_INIT(Gameplay)
 { 	   
-    load_scene("Scenes/test3.scene", scene);
+    load_scene(INITIAL_LEVEL, scene);
     build_bsp_tree(scene);
     ValidateTextures(scene);
 	Player_Init(&context);
@@ -146,7 +146,7 @@ GAMESTATE_POSTRENDER(Gameplay)
 GAMESTATE_EDITOR(Gameplay)
 {
 
-static char buff[128];
+    static char buff[128];
 
   // playerStats();
 

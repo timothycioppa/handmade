@@ -1,15 +1,14 @@
 #include "LevelEditor.hpp"
 #include "editor_render_context.hpp"
+#include "../../imgui/imgui.h"
+#include <fstream>
+#include <iostream>
 
-//glm::mat4 clipToWorld = glm::mat4(1.0f);
-sector_e *sectors;
-segment_e *segments;
+sector_e sectors[MAX_EDITOR_SECTORS];
+segment_e segments[MAX_EDITOR_SEGMENTS];
 
-#define MAX_EDITOR_SECTORS 100
-#define MAX_EDITOR_SEGMENTS 400
-
-int sectorHead;
-int segmentHead;
+int numSectors;
+int numSegments;
 
 hover_data hoverData;
 placement_mode mode;
@@ -18,6 +17,7 @@ placement_mode mode;
 sector_e debug = 
 {
     glm::vec3(0.0f), glm::vec3(0.0f),
+    0.0f, 0.0f,
     glm::vec3(1.0f), glm::vec3(1.0f), glm::vec3(1.0f), glm::vec3(1.0f)
 };
 
@@ -25,43 +25,80 @@ placement_data data;
 bool placing = false;
 
 glm::vec3 getWorldCoordinates(glm::vec2 & windowCoordinates);
-void clear_hover_data();
 bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex, hover_data & hover);
 void render_box(sector_e & box);
 placement_mode getCurrentPlacementMode(hover_type type);
 
-void FreeModeStart(placement_data* pData);
-void FreeModeUpdate(placement_data* pData);
-void FreeModeEnd(placement_data* pData);
-void WallDragStart(placement_data* pData);
-void WallDragUpdate(placement_data* pData);
-void WallDragEnd(placement_data* pData);
+PLACEMENT_STATE_FUNC(FreeMode_Start);
+PLACEMENT_STATE_FUNC(FreeMode_Update);
+PLACEMENT_STATE_FUNC(FreeMode_End);
+
+PLACEMENT_STATE_FUNC(WallDrag_Start);
+PLACEMENT_STATE_FUNC(WallDrag_Update);
+PLACEMENT_STATE_FUNC(WallDrag_End);
+
+// stubs, idle does nothing
+PLACEMENT_STATE_FUNC(Idle_Start) {}
+PLACEMENT_STATE_FUNC(Idle_Update) {}
+PLACEMENT_STATE_FUNC(Idle_End) {}
+
+
+
+void exportScene() 
+{ 
+    std::ofstream stream("Scenes/test4.scene");
+    stream << "sectors" << std::endl;
+    stream << "count " << numSectors << std::endl;
+
+    for (int i = 0; i < numSectors; i++) 
+    {
+        sector_e & s = sectors[i];
+        float cx = s.startCorner.x + 0.5f * (s.endCorner.x - s.startCorner.x);
+        float cy = s.startCorner.z + 0.5f * (s.endCorner.z - s.startCorner.z);
+        float floor = 0.0f;
+        float ceiling = 20.0f;
+
+        stream  
+            << "floor " << floor 
+            << " ceiling " << ceiling 
+            << " center " << cx << " " << cy << " "
+            << " dimension " << s.width << " " << s.height << " "
+            << " wall " << s.botSegmentID << " " << s.leftSegmentID << " " << s.topSegmentID << " " << s.rightSegmentID << std::endl;
+    }
+
+    stream << "segments" << std::endl;
+    stream << "count " << numSegments << std::endl;
+
+    for (int i = 0; i < numSegments; i++) 
+    {
+        segment_e & s = segments[i];
+
+        stream
+            << "s " << s.start.x << " " << s.start.z  << " "
+            << "e " << s.end.x << " " << s.end.z << " "
+            << "f " << s.frontSectorID << " " << "b " << s.backSectorID << std::endl;    
+    }
+
+    stream.close();
+}
+
+#define PLACEMENT_STATE(name) { name##_Start, name##_Update, name##_End}
+
+placement_mode_state modeStates[3] = 
+{
+    PLACEMENT_STATE(FreeMode),
+    PLACEMENT_STATE(WallDrag),
+    PLACEMENT_STATE(Idle)
+};
 
 editor_render_context renderContext;
-
-placement_mode_state modeStates[2] = 
-{
-    {
-        FreeModeStart,
-        FreeModeUpdate,
-        FreeModeEnd
-    },
-
-    {
-        WallDragStart,
-        WallDragUpdate,
-        WallDragEnd
-    }
-};
 
 GAMESTATE_INIT(LevelEditor)
 {
 	EditorPlayer_Init(&context);
     renderContext.clipToWorld = glm::inverse(gEditorPlayer.camData.projection * gEditorPlayer.camData.view);
-    sectors = (sector_e*) malloc(MAX_EDITOR_SECTORS * sizeof(sector_e));
-    segments = (segment_e*) malloc(MAX_EDITOR_SEGMENTS * sizeof(segment_e));
-    sectorHead = 0;
-    segmentHead = 0;
+    numSectors = 0;
+    numSegments = 0;
 }
 
 GAMESTATE_UPDATE(LevelEditor)
@@ -73,10 +110,24 @@ GAMESTATE_UPDATE(LevelEditor)
 
     if (!placing)
     {
-        // 2. figure out what we're hovering over
-        clear_hover_data();
 
-        for (int i = 0; i < sectorHead; i++) 
+        // reset hover data
+        hoverData.type = hover_type::nothing;
+        hoverData.sectorIndex = -1;
+
+        for (int i = 0; i < numSectors; i++) 
+        {
+            sector_e & sector = sectors[i];
+        
+            sector.botColor = glm::vec3(1,1,1);
+            sector.leftColor = glm::vec3(1,1,1);
+            sector.rightColor = glm::vec3(1,1,1);
+            sector.topColor = glm::vec3(1,1,1);
+        }
+
+
+        // figure out what we're hovering over, storing the result in the placement data
+        for (int i = 0; i < numSectors; i++) 
         { 
             sector_e & curr = sectors[i];
 
@@ -87,28 +138,33 @@ GAMESTATE_UPDATE(LevelEditor)
                 break;
             } 
         }
+
     }
 
-    if (mouse_button_held(MouseButtons::M_LEFT)) 
+
+    if (mouse_button_held(MouseButtons::M_RIGHT)) 
     {
         placement_mode_state & state = modeStates[int(mode)];
         state.OnUpdate(&data); 
     }
 
-    if (mouse_button_released(MouseButtons::M_LEFT))
+
+    if (mouse_button_released(MouseButtons::M_RIGHT))
     {
         placing = false;
         placement_mode_state & state = modeStates[int(mode)];
         state.OnEnd(&data);
     }
 
-    if (mouse_button_pressed(MouseButtons::M_LEFT)) 
+
+    if (mouse_button_pressed(MouseButtons::M_RIGHT)) 
     {
         placing = true;
         mode = getCurrentPlacementMode(hoverData.type);
         placement_mode_state & state = modeStates[int(mode)];
         state.OnStart(&data);
     }
+
 
     EditorPlayer_UpdateMovementDirection(&context);
     EditorPlayer_UpdatePosition(&context);    
@@ -118,7 +174,7 @@ GAMESTATE_RENDER(LevelEditor)
 {
     render_box(debug);
 
-    for (int i = 0; i < sectorHead; i++) 
+    for (int i = 0; i < numSectors; i++) 
     { 
         sector_e & curr = sectors[i];
         render_box(curr);
@@ -128,35 +184,32 @@ GAMESTATE_RENDER(LevelEditor)
     G_RenderLevelEditor(renderContext);
 }
 
-GAMESTATE_POSTRENDER(LevelEditor)
-{
-
-}
-
+GAMESTATE_POSTRENDER(LevelEditor){}
 GAMESTATE_EDITOR(LevelEditor)
-{}
-
-GAMESTATE_DESTROY(LevelEditor)
 {
-    free(sectors);
-    free(segments);
-}
+    if (ImGui::Button("export", ImVec2(100, 50))){
+       exportScene();
+    }
 
-void FreeModeStart(placement_data* pData) 
+
+}
+GAMESTATE_DESTROY(LevelEditor){}
+
+PLACEMENT_STATE_FUNC(FreeMode_Start)
 { 
     debug.startCorner = pData->currentWorldPosition;
     debug.endCorner = pData->currentWorldPosition;
 }
 
-void FreeModeUpdate(placement_data* pData) 
+PLACEMENT_STATE_FUNC(FreeMode_Update)
 { 
     debug.endCorner = pData->currentWorldPosition;
 }
 
-void FreeModeEnd(placement_data* pData) 
+PLACEMENT_STATE_FUNC(FreeMode_End)
 { 
     // adjust corners to be proper bottom left / top right
-    sector_e & newSector = sectors[sectorHead];
+    sector_e & newSector = sectors[numSectors];
     
     newSector.startCorner = 
     { 
@@ -176,49 +229,51 @@ void FreeModeEnd(placement_data* pData)
     newSector.leftColor = glm::vec3(1,0,0);
     newSector.topColor = glm::vec3(1,0,0);
     newSector.rightColor = glm::vec3(1,0,0);
+    newSector.width = glm::abs(newSector.startCorner.x - newSector.endCorner.x);
+    newSector.height = glm::abs(newSector.startCorner.z - newSector.endCorner.z);
 
-    int sectorIndex = sectorHead;
-    sectorHead++;
+    int sectorIndex = numSectors;
+    numSectors++;
 
-    segment_e &bot = segments[segmentHead];
-    newSector.botSegmentID = segmentHead;
+    segment_e &bot = segments[numSegments];
+    newSector.botSegmentID = numSegments;
     bot.frontSectorID = sectorIndex;
     bot.backSectorID = -1;    
-    bot.start = debug.endCorner;
-    bot.start.z = debug.startCorner.z;    
-    bot.end = debug.startCorner;
+    bot.start = newSector.endCorner;
+    bot.start.z = newSector.startCorner.z;    
+    bot.end = newSector.startCorner;
 
 
-    segment_e &left = segments[segmentHead+1];
-    newSector.leftSegmentID = segmentHead + 1;
+    segment_e &left = segments[numSegments+1];
+    newSector.leftSegmentID = numSegments + 1;
     left.frontSectorID = sectorIndex;
     left.backSectorID = -1;
-    left.start = debug.startCorner;
-    left.end = debug.startCorner;
-    left.end.z = debug.endCorner.z;
+    left.start = newSector.startCorner;
+    left.end = newSector.startCorner;
+    left.end.z = newSector.endCorner.z;
 
 
-    segment_e &top = segments[segmentHead+2];
-    newSector.topSegmentID = segmentHead + 2;
+    segment_e &top = segments[numSegments+2];
+    newSector.topSegmentID = numSegments + 2;
     top.frontSectorID = sectorIndex;
     top.backSectorID = -1;
-    top.start = debug.startCorner;
-    top.end = debug.endCorner;
-    top.start.z = debug.endCorner.z;
+    top.start = newSector.startCorner;
+    top.end = newSector.endCorner;
+    top.start.z = newSector.endCorner.z;
 
 
-    segment_e &right = segments[segmentHead+3];
-    newSector.rightSegmentID = segmentHead + 3;
+    segment_e &right = segments[numSegments+3];
+    newSector.rightSegmentID = numSegments + 3;
     right.frontSectorID = sectorIndex;
     right.backSectorID = -1;
-    right.start = debug.endCorner;
-    right.end = debug.endCorner;
-    right.end.z = debug.startCorner.z;
+    right.start = newSector.endCorner;
+    right.end = newSector.endCorner;
+    right.end.z = newSector.startCorner.z;
 
-    segmentHead += 4;
+    numSegments += 4;
 }
 
-void WallDragStart(placement_data* pData) 
+PLACEMENT_STATE_FUNC(WallDrag_Start)
 { 
     sector_e & sector = sectors[pData->sectorIndex];
 
@@ -253,7 +308,7 @@ void WallDragStart(placement_data* pData)
     }
 }
 
-void WallDragUpdate(placement_data* pData) 
+PLACEMENT_STATE_FUNC(WallDrag_Update)
 { 
     switch (pData->sectorSide) 
     { 
@@ -271,10 +326,10 @@ void WallDragUpdate(placement_data* pData)
     }
 }
 
-void WallDragEnd(placement_data* pData) 
+PLACEMENT_STATE_FUNC(WallDrag_End)
 { 
     // adjust corners to be proper bottom left / top right
-    sector_e & newSector = sectors[sectorHead];
+    sector_e & newSector = sectors[numSectors];
     
     newSector.startCorner = 
     { 
@@ -294,9 +349,167 @@ void WallDragEnd(placement_data* pData)
     newSector.leftColor = glm::vec3(1,0,0);
     newSector.topColor = glm::vec3(1,0,0);
     newSector.rightColor = glm::vec3(1,0,0);
+    newSector.width = glm::abs(newSector.startCorner.x - newSector.endCorner.x);
+    newSector.height = glm::abs(newSector.startCorner.z - newSector.endCorner.z);
 
-    sectorHead++;
+    int sectorIndex = numSectors;
+    numSectors++;
 
+    sector_e & connectedSector = sectors[hoverData.sectorIndex];
+
+    switch (pData->sectorSide) 
+    {
+        case sector_side::ss_bot: 
+        {
+            // SHARED SEGMENT: this should be the bottom of the segment we dragged off of
+            segment_e &top = segments[connectedSector.botSegmentID];
+            newSector.topSegmentID = connectedSector.botSegmentID;
+            top.backSectorID = sectorIndex; 
+
+            // new segments added for this sector
+
+            segment_e &bot = segments[numSegments];
+            newSector.botSegmentID = numSegments;
+            bot.frontSectorID = sectorIndex;
+            bot.backSectorID = -1;    
+            bot.start = newSector.endCorner;
+            bot.start.z = newSector.startCorner.z;    
+            bot.end = newSector.startCorner;
+
+            segment_e &left = segments[numSegments+1];
+            newSector.leftSegmentID = numSegments + 1;
+            left.frontSectorID = sectorIndex;
+            left.backSectorID = -1;
+            left.start = newSector.startCorner;
+            left.end = newSector.startCorner;
+            left.end.z = newSector.endCorner.z;
+
+            segment_e &right = segments[numSegments+2];
+            newSector.rightSegmentID = numSegments + 2;
+            right.frontSectorID = sectorIndex;
+            right.backSectorID = -1;
+            right.start = newSector.endCorner;
+            right.end = newSector.endCorner;
+            right.end.z = newSector.startCorner.z;
+
+            numSegments += 3;
+
+            // the rest are new segments
+        } break;
+
+        case sector_side::ss_left: 
+        {
+            // SHARED SEGMENT: this should be the bottom of the segment we dragged off of
+            segment_e &right = segments[connectedSector.leftSegmentID];
+            newSector.rightSegmentID = connectedSector.leftSegmentID;
+            right.backSectorID = sectorIndex; 
+
+            segment_e &bot = segments[numSegments];
+            newSector.botSegmentID = numSegments;
+            bot.frontSectorID = sectorIndex;
+            bot.backSectorID = -1;    
+            bot.start = newSector.endCorner;
+            bot.start.z = newSector.startCorner.z;    
+            bot.end = newSector.startCorner;
+
+
+            segment_e &left = segments[numSegments+1];
+            newSector.leftSegmentID = numSegments + 1;
+            left.frontSectorID = sectorIndex;
+            left.backSectorID = -1;
+            left.start = newSector.startCorner;
+            left.end = newSector.startCorner;
+            left.end.z = newSector.endCorner.z;
+
+
+            segment_e &top = segments[numSegments+2];
+            newSector.topSegmentID = numSegments + 2;
+            top.frontSectorID = sectorIndex;
+            top.backSectorID = -1;
+            top.start = newSector.startCorner;
+            top.end = newSector.endCorner;
+            top.start.z = newSector.endCorner.z;
+
+            numSegments += 3;
+
+
+        } break;
+        
+        case sector_side::ss_top: {
+            // SHARED SEGMENT: this should be the bottom of the segment we dragged off of
+            segment_e &bot = segments[connectedSector.topSegmentID];
+            newSector.botSegmentID = connectedSector.topSegmentID;
+            bot.backSectorID = sectorIndex; 
+
+
+
+
+            segment_e &left = segments[numSegments];
+            newSector.leftSegmentID = numSegments;
+            left.frontSectorID = sectorIndex;
+            left.backSectorID = -1;
+            left.start = newSector.startCorner;
+            left.end = newSector.startCorner;
+            left.end.z = newSector.endCorner.z;
+
+
+            segment_e &top = segments[numSegments+1];
+            newSector.topSegmentID = numSegments + 1;
+            top.frontSectorID = sectorIndex;
+            top.backSectorID = -1;
+            top.start = newSector.startCorner;
+            top.end = newSector.endCorner;
+            top.start.z = newSector.endCorner.z;
+
+
+            segment_e &right = segments[numSegments+2];
+            newSector.rightSegmentID = numSegments + 2;
+            right.frontSectorID = sectorIndex;
+            right.backSectorID = -1;
+            right.start = newSector.endCorner;
+            right.end = newSector.endCorner;
+            right.end.z = newSector.startCorner.z;
+
+            numSegments += 3;
+
+
+        } break;
+        case sector_side::ss_right: 
+        {
+            // SHARED SEGMENT: this should be the bottom of the segment we dragged off of
+            segment_e &left = segments[connectedSector.rightSegmentID];
+            newSector.leftSegmentID = connectedSector.rightSegmentID;
+            left.backSectorID = sectorIndex; 
+
+            segment_e &bot = segments[numSegments];
+            newSector.botSegmentID = numSegments;
+            bot.frontSectorID = sectorIndex;
+            bot.backSectorID = -1;    
+            bot.start = newSector.endCorner;
+            bot.start.z = newSector.startCorner.z;    
+            bot.end = newSector.startCorner;
+
+            segment_e &top = segments[numSegments+1];
+            newSector.topSegmentID = numSegments + 1;
+            top.frontSectorID = sectorIndex;
+            top.backSectorID = -1;
+            top.start = newSector.startCorner;
+            top.end = newSector.endCorner;
+            top.start.z = newSector.endCorner.z;
+
+
+            segment_e &right = segments[numSegments+2];
+            newSector.rightSegmentID = numSegments + 2;
+            right.frontSectorID = sectorIndex;
+            right.backSectorID = -1;
+            right.start = newSector.endCorner;
+            right.end = newSector.endCorner;
+            right.end.z = newSector.startCorner.z;
+
+            numSegments += 3;
+
+        } break;
+    }
 }
 
 glm::vec3 getWorldCoordinates(glm::vec2 & windowCoordinates) 
@@ -310,27 +523,11 @@ glm::vec3 getWorldCoordinates(glm::vec2 & windowCoordinates)
     return  {worldPos.x, worldPos.y, worldPos.z};
 }
 
-void clear_hover_data() 
-{ 
-    hoverData.type = hover_type::nothing;
-    hoverData.sectorIndex = -1;
-
-    for (int i = 0; i < sectorHead; i++) 
-    {
-        sector_e & sector = sectors[i];
-    
-        sector.botColor = glm::vec3(1,1,1);
-        sector.leftColor = glm::vec3(1,1,1);
-        sector.rightColor = glm::vec3(1,1,1);
-        sector.topColor = glm::vec3(1,1,1);
-    }
-}
-
 bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex, hover_data & hover)
 {
     glm::vec3 & start = box.startCorner;
     glm::vec3 & end = box.endCorner;
-    float thresh = 0.15f;
+    float thresh = 0.35f;
     hover.type = hover_type::nothing;
 
     // check bottom and top lines
@@ -421,9 +618,23 @@ placement_mode getCurrentPlacementMode(hover_type type)
 {
     switch (type)
     {
-        case hover_type::nothing: return placement_mode::free_mode;
+
+        // hovering over nothing, just start freely making a sector
+        case hover_type::nothing: 
+        {
+            return placement_mode::free_mode;
+        }; break;
+        
+
+        // hovering over a wall segment, start dragging the segment
+        case hover_type::wall_segment:
+        {
+            return placement_mode::dragging_wall_segment;
+        } break;    
+    
     }
-    return placement_mode::dragging_wall_segment;
+    // default state, do nothing
+    return placement_mode::idle_mode;
 }
 
 EXPORT_GAME_STATE(LevelEditor, gStateLevelEditor);

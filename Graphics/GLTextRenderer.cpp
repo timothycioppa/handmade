@@ -156,5 +156,4 @@ void DrawText(std::string text, float x, float y, float scale, glm::vec3 color, 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
-
 }

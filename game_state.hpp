@@ -8,7 +8,7 @@ typedef void (*GameStateFuntion) (game_context & context);
 
 enum GameState 
 { 
-	STARTUP,
+	TITLE_SCREEN,
 	GAMEPLAY,
 	LEVEL_EDITOR,
 	NONE

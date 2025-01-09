@@ -9,7 +9,7 @@ void load_mesh(const char* fileName, static_mesh & m)
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> uvs;
     
-     if (loadOBJ(fileName, vertices, uvs, normals)) 
+    if (loadOBJ(fileName, vertices, uvs, normals)) 
     { 
         glGenVertexArrays(1, &(m.VAO));	
         glBindVertexArray(m.VAO);

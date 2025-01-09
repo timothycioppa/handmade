@@ -12,6 +12,7 @@
 float lightStrength = 0.5f;
 
 shader_grid editorGrid;
+shader_blur blurShader;
 
 shader_depthPass shadowDepthPass;
 depth_Uniforms shadowDepthUniforms;
@@ -39,6 +40,7 @@ void G_Init()
     COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", shadowDepthPass)
     COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
     COMPILE_SHADER("Shaders/editorGrid.vert", "Shaders/editorGrid.frag", editorGrid);
+    COMPILE_SHADER("Shaders/blur.vert", "Shaders/blur.frag", blurShader);
 
     load_mesh("Models/wall.obj", quadMesh);
     GenerateHDRColorBuffer();
@@ -62,40 +64,6 @@ void G_Cleanup()
 	}
 }
 
-// uses a rendertexture for depth instead of a texture we can access after the HDR pass
-void GenerateHDRColorBuffer_OLD() 
-{ 
-    unsigned int hdrFBO;
-    unsigned int colorBuffer;
-    unsigned int rboDepth;
-
-    glGenFramebuffers(1, &hdrFBO);
-    glGenTextures(1, &colorBuffer);
-    glBindTexture(GL_TEXTURE_2D, colorBuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-    
-    // attach color and depth textures 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-         
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) 
-    {
-        std::cout << "Framebuffer not complete!" << std::endl;
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    hdrColorBufferFB.fbo = hdrFBO;
-    hdrColorBufferFB.texture = colorBuffer;
-    hdrColorBufferFB.depthTexture = rboDepth;
-}
 
 void GenerateHDRColorBuffer() 
 { 
@@ -106,63 +74,69 @@ void GenerateHDRColorBuffer()
     unsigned int rboDepth;
 
     glGenFramebuffers(1, &hdrFBO);
-
-
-    printf("%d\n", glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-    glGenTextures(1, &colorBuffer);
-    glBindTexture(GL_TEXTURE_2D, colorBuffer);
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-
-    printf("%d\n", glCheckFramebufferStatus(GL_FRAMEBUFFER));
-
-    glGenTextures(1, &normalBuffer);
-    glBindTexture(GL_TEXTURE_2D, normalBuffer);
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    }
-
-    glGenTextures(1, &positionBuffer);
-    glBindTexture(GL_TEXTURE_2D, positionBuffer);
-    {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	}
-
-    glGenTextures(1, &rboDepth);
-    glBindTexture(GL_TEXTURE_2D, rboDepth);
-    {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	}
-
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normalBuffer, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, positionBuffer, 0);
-
-
-    unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
-    glDrawBuffers(3, attachments);
-
-    
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, rboDepth, 0);
-
-    unsigned int error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (error != GL_FRAMEBUFFER_COMPLETE) 
     {
-        std::cout << "Framebuffer not complete [" << error << "]" << std::endl;
+
+        // 1. generate HDR color buffer
+        glGenTextures(1, &colorBuffer);
+        glBindTexture(GL_TEXTURE_2D, colorBuffer);
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+
+
+        // 2. generate normal textures
+        glGenTextures(1, &normalBuffer);
+        glBindTexture(GL_TEXTURE_2D, normalBuffer);
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+
+
+        // 3. generate position texture
+        glGenTextures(1, &positionBuffer);
+        glBindTexture(GL_TEXTURE_2D, positionBuffer);
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        }
+
+
+        // 4. generate depth texture
+        glGenTextures(1, &rboDepth);
+        glBindTexture(GL_TEXTURE_2D, rboDepth);
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        }
+
+
+        // attach (1-3) as color buffers, to be written into by the standard shadow shader
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBuffer, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normalBuffer, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, positionBuffer, 0);
+
+
+        unsigned int attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+        glDrawBuffers(3, attachments);
+        
+
+        // attach the depth buffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, rboDepth, 0);
+        unsigned int error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (error != GL_FRAMEBUFFER_COMPLETE) 
+        {
+            std::cout << "Framebuffer not complete [" << error << "]" << std::endl;
+        }
+
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -177,9 +151,10 @@ void GenerateHDRColorBuffer()
 void GenerateShadowDepthBuffer() 
 { 
     glGenFramebuffers(1, &(shadowDepthMapFB.fbo));    
+
+    // generate the shadow depth texture
     glGenTextures(1, &(shadowDepthMapFB.texture));
-    glBindTexture(GL_TEXTURE_2D, shadowDepthMapFB.texture);
-	
+    glBindTexture(GL_TEXTURE_2D, shadowDepthMapFB.texture);	
     {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -187,6 +162,7 @@ void GenerateShadowDepthBuffer()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	}
+
 
     // attach depth texture as FBO's depth buffer
     glBindFramebuffer(GL_FRAMEBUFFER, shadowDepthMapFB.fbo);
@@ -215,6 +191,7 @@ void ValidateTextures(bsp_tree & tree)
     }
 }
 
+
 void GenerateLightData() 
 {
     lightData.near = 0.01f;
@@ -225,7 +202,8 @@ void GenerateLightData()
     glm::vec3 center = glm::vec3(5.0f , 5.0f, 5.0f);
 	lightData.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), center, glm::vec3(0.0, 1.0, 0.0));
 	lightData.lightSpaceMatrix = (lightData.projection) * (lightData.view);
- }
+}
+
 
 void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
 {
@@ -263,12 +241,11 @@ void G_RenderShadowDepth(bsp_tree & scene)
     BIND_SHADER(shadowDepthPass)   
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowDepthMapFB.fbo);
-    glClear(GL_DEPTH_BUFFER_BIT);	                
+    glClear(GL_DEPTH_BUFFER_BIT);	                 
     render_shadow_depth_recursive(scene.root, scene);
-    unbind_shader();
+    unbind_shader();    
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
-
 
 void G_StartFrame() 
 { 
@@ -284,9 +261,11 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     context.cameraPosition = main_player.Position;
     context.cameraForward = main_player.Forward;
     context.lightSpace = lightData.lightSpaceMatrix;
+    
     context.lightPosition = { 0.0f, 0.0f, 0.0f};
     context.lightColor = {1.0f, 1.0f, 0.0f};
     context.lightPower = 2.0f;
+
     context.totalTime = gContext.applicationTime;
     context.deltaTime = gContext.deltaTime;
     context.sinTime = gContext.sinTime;
@@ -321,7 +300,7 @@ void G_RenderFinalFrame()
         set_uniforms(fullScreenHDRBlit, hdrBlitUniforms);
         R_RenderFullScreenQuad();
     }
-    
+
     unbind_shader();
 }
 
@@ -352,6 +331,30 @@ void draw_crosshairs()
     R_DrawLine(vertCrosshairStart * ar, vertCrosshairEnd * ar, crossColor);    
 }
 
+void G_PostProcessing() 
+{ 
+#ifdef DONT_RUN
+    // BLURRING: 
+    {
+        float width = gContext.windowWidth;
+        float height = gContext.windowHeight; 
+
+        glViewport(0, 0, width , height );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+        
+        BIND_SHADER(blurShader);
+        {
+            set_texture(blurShader.uniformsIDS.colorBuffer, hdrColorBufferFB.texture, 0);
+            R_RenderFullScreenQuad();
+        }
+
+        unbind_shader();
+    }
+#endif
+}
+
 void G_RenderSceneShadowedFull(bsp_tree & scene) 
 {
     draw_crosshairs();
@@ -359,11 +362,15 @@ void G_RenderSceneShadowedFull(bsp_tree & scene)
     G_RenderShadowDepth(scene); 
     G_RenderToHDRColorBuffer(scene);
 
-    // at this point the depth and color buffer are accessible, though the color buffer hasn't been remapped
+    // at this point the full G buffer is accessible, though the color buffer hasn't been remapped
     // that happens in the hdr pass (G_RenderFinalFrame()) 
     G_RenderOverlay(); 
     R_DrawLines();    
     G_RenderFinalFrame();
+
+    // post processing can happen here
+    G_PostProcessing();
+
 }
 
 void G_RenderOverlay() 
@@ -388,9 +395,9 @@ void G_RenderEditorGrid(editor_render_context & rendercontext)
         glm::vec3 & position = rendercontext.cameraPosition;
         glUniform2f(editorGrid.uniformsIDS.cameraPosition , position.x, position.z);
         glUniformMatrix4fv(editorGrid.uniformsIDS.clipToWorld, 1,  GL_FALSE,glm::value_ptr(rendercontext.clipToWorld));
-    
         R_RenderFullScreenQuad(); 
-    } unbind_shader();
+    } 
+    unbind_shader();
     
 }
 
@@ -398,4 +405,12 @@ void G_RenderLevelEditor(editor_render_context & renderContext)
 { 
     G_RenderEditorGrid(renderContext);
     R_DrawLines();  
+}
+
+void G_RenderTitleScreen() 
+{ 
+    glViewport(0, 0, gContext.windowWidth, gContext.windowHeight);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(0.0f, 0.2f, .2f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 }

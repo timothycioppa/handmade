@@ -17,7 +17,7 @@ void EditorPlayer_Init(game_context * context)
     gEditorPlayer.camData.view = glm::lookAt(gEditorPlayer.Position, gEditorPlayer.Position + gEditorPlayer.Forward, gEditorPlayer.Up);
 
     float aspecRatio = float(WINDOW_WIDTH) / float(WINDOW_HEIGHT);
-    float height = 10.0f;
+    float height = 100.0f;
     float width = aspecRatio * height;
 
     gEditorPlayer.camData.projection = glm::ortho(-width, width, -height, height, 0.01f, 100.0f);

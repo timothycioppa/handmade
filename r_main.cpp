@@ -157,24 +157,24 @@ void R_RenderFullScreenQuad()
 void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c) 
 { 
     BIND_SHADER(coloredRect);
-
-    coloredRectUniforms.color = c;
-    coloredRectUniforms.dimensions = d;
-    coloredRectUniforms.lowerLeft = ll;    
-    set_uniforms(coloredRect, coloredRectUniforms);
-
-    R_RenderFullScreenQuad();
+    {
+        set_float3(coloredRect.uniformsIDS.dimensions, d);
+        set_float3(coloredRect.uniformsIDS.lowerLeft, ll);
+        set_float3(coloredRect.uniformsIDS.color, c);
+        R_RenderFullScreenQuad();
+    }
     unbind_shader();
 }
 
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture) 
 { 
     BIND_SHADER(texturedRect);
-    texRectUniforms.dimensions = d;
-    texRectUniforms.lowerLeft = ll;
-    texRectUniforms.mainTex = texture->textureID; 
-    set_uniforms(texturedRect, texRectUniforms);    
-    R_RenderFullScreenQuad();
+    {
+        set_float3(texturedRect.uniformsIDS.dimensions, d);
+        set_float3(texturedRect.uniformsIDS.lowerLeft, ll);
+        set_texture(texturedRect.uniformsIDS.texID, texture->textureID, 0);
+        R_RenderFullScreenQuad();
+    }
     unbind_shader();
 }
 
@@ -199,6 +199,7 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
     set_float3(standardShadowed.uniformIDS.specularID, scale * renderData.material.specular);
     set_float(standardShadowed.uniformIDS.shininessID, scale * renderData.material.shininess);
 
+    // matrix uniforms
     set_mat4(standardShadowed.uniformIDS.modelID, model);
     set_mat4(standardShadowed.uniformIDS.modelViewID, modelView);
     set_mat4(standardShadowed.uniformIDS.modelViewProjID, modelViewProj);
@@ -312,6 +313,7 @@ void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
 
 void initFSQ() 
 { 
+    // the vertices are already in clip space, no vertex processing needs to be done in the vertex shader
     float quadVertices[] = 
     {
         -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,

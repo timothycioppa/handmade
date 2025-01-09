@@ -9,4 +9,7 @@ const unsigned int WINDOW_HEIGHT = 960;
 const unsigned int SHADOW_WIDTH = 640;
 const unsigned int SHADOW_HEIGHT = 480;
 
+#define INITIAL_STATE GameState::TITLE_SCREEN
+#define INITIAL_LEVEL "Scenes/test4.scene"
+
 #endif

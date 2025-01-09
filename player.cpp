@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include "include/glm/gtc/quaternion.hpp"
 
-
 player_data main_player;
 
 void update_view_matrix(player_data* player)
@@ -18,8 +17,8 @@ void update_view_matrix(player_data* player)
     front.z = sin(yawRad) * cos(pitchRad);
 
     player->Forward = glm::normalize(front);
-    player->Right = glm::normalize(glm::cross(player->Forward, player->WorldUp));  
-    player->Up    = glm::normalize(glm::cross(player->Right, player->Forward));
+    player->Right = glm::normalize(glm::cross(player->WorldUp, player->Forward));  
+    player->Up    = glm::normalize(glm::cross( player->Forward, player->Right));
     player->camData.view =  glm::lookAt(player->Position, player->Position + player->Forward, {0,1,0});        
 }
 
@@ -62,7 +61,7 @@ void Player_UpdateView(game_context * context)
     xoffset *= main_player.LookSpeed;
     yoffset *= main_player.LookSpeed;
 
-    main_player.Horizontal   += xoffset;
+    main_player.Horizontal   -= xoffset;
     main_player.Vertical += yoffset;
     CLAMPF(main_player.Vertical, -89.0f, 89.0f)
     update_view_matrix(&main_player);
