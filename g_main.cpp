@@ -15,7 +15,6 @@ shader_grid editorGrid;
 shader_blur blurShader;
 
 shader_depthPass shadowDepthPass;
-depth_Uniforms shadowDepthUniforms;
 
 shader_hdr_blit fullScreenHDRBlit;
 hdr_uniforms hdrBlitUniforms;
@@ -27,6 +26,7 @@ TextureStore gTextureRepository;
 
 // used for rendering walls and ceilings (since everything is a quad)
 static_mesh quadMesh;
+static_mesh cubeMesh;
 
 bool useHDR = true;
 float exposure = 1.0f;
@@ -37,12 +37,16 @@ void    GenerateLightData();
 
 void G_Init() 
 {
+
+
     COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", shadowDepthPass)
     COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
     COMPILE_SHADER("Shaders/editorGrid.vert", "Shaders/editorGrid.frag", editorGrid);
     COMPILE_SHADER("Shaders/blur.vert", "Shaders/blur.frag", blurShader);
 
     load_mesh("Models/wall.obj", quadMesh);
+    load_mesh("Models/cube.obj", cubeMesh);
+
     GenerateHDRColorBuffer();
     GenerateShadowDepthBuffer();
     GenerateLightData();
@@ -81,7 +85,7 @@ void GenerateHDRColorBuffer()
         glGenTextures(1, &colorBuffer);
         glBindTexture(GL_TEXTURE_2D, colorBuffer);
         {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y, 0, GL_RGBA, GL_FLOAT, NULL);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
@@ -186,7 +190,7 @@ void ValidateTextures(bsp_tree & tree)
     for (int i = 0; i < tree.numRenderables; i++) {
        if (tree.renderables[i].material.mainTexture == nullptr)
        {
-            tree.renderables[i].material.mainTexture = gTextureRepository.GetTexture("Textures/freImage1.jpeg");
+            tree.renderables[i].material.mainTexture = gTextureRepository.GetTexture("Textures/MMCellNoise.png");
        } 
     }
 }
@@ -263,8 +267,8 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     context.lightSpace = lightData.lightSpaceMatrix;
     
     context.lightPosition = { 0.0f, 0.0f, 0.0f};
-    context.lightColor = {1.0f, 1.0f, 0.0f};
-    context.lightPower = 2.0f;
+    context.lightColor = {1.0f, 1.0f, 1.0f};
+    context.lightPower = 1.0f;
 
     context.totalTime = gContext.applicationTime;
     context.deltaTime = gContext.deltaTime;
@@ -278,26 +282,22 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    R_RenderMeshStandardShadowed(scene, context); 
-}
+    R_RenderMeshStandardShadowed(scene, context);       
 
+}
 
 void G_RenderFinalFrame() 
 {
-    float width = gContext.windowWidth;
-    float height = gContext.windowHeight; 
-
-    glViewport(0, 0, width , height );
+    glViewport(0, 0, gContext.windowWidth , gContext.windowHeight );
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
     
     BIND_SHADER(fullScreenHDRBlit);
-    {
-        hdrBlitUniforms.hdrBuffer = hdrColorBufferFB.texture;
-        hdrBlitUniforms.hdr = true;
-        hdrBlitUniforms.exposure = 1.0;
-        set_uniforms(fullScreenHDRBlit, hdrBlitUniforms);
+    {    
+        set_texture(fullScreenHDRBlit.uniformIDS.hdrBuffer,  hdrColorBufferFB.texture, 0);
+        set_int(fullScreenHDRBlit.uniformIDS.hdr, true);
+        set_float(fullScreenHDRBlit.uniformIDS.exposure,  1.0f);
         R_RenderFullScreenQuad();
     }
 
@@ -352,15 +352,55 @@ void G_PostProcessing()
 
         unbind_shader();
     }
-#endif
+    #endif
+}
+
+void RenderGun(bsp_tree & scene) 
+{ 
+
+    static RenderContext context;
+    context.shadowMapID = shadowDepthMapFB.texture;
+    context.cameraPosition = main_player.Position;
+    context.cameraForward = main_player.Forward;
+    context.lightSpace = lightData.lightSpaceMatrix;
+    
+    context.lightPosition = { 0.0f, 0.0f, 0.0f};
+    context.lightColor = {1.0f, 1.0f, 1.0f};
+    context.lightPower = 1.0f;
+
+    context.totalTime = gContext.applicationTime;
+    context.deltaTime = gContext.deltaTime;
+    context.sinTime = gContext.sinTime;
+    context.cosTime = gContext.cosTime;
+    context.v = main_player.camData.view;
+    context.p = main_player.camData.projection;
+
+    float amp = 0.05f;
+    float speed = 8.0f;
+    float offset = sin(speed * context.totalTime) * amp;   
+
+    glm::vec3 pos = main_player.Position + main_player.Forward * 0.25f+ main_player.Right * 0.5f + glm::vec3(0.0f, offset, 0.0f);
+    glm::vec3 target = main_player.Position + 20.0f * main_player.Forward;
+    glm::vec3 scale = {.05, .1, .8};
+    glm::mat4 m = glm::inverse(glm::lookAt(pos, target, {0,1,0})) * glm::scale(glm::mat4(1.0f), scale);
+    glm::mat4 gunTransform = glm::inverse(glm::lookAt(pos, target, {0,1,0})) * glm::scale(glm::mat4(1.0f), scale);
+
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
+        glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
+        R_RenderMeshShadowed(cubeMesh, gunTransform, scene, context, gTextureRepository.GetTexture("Textures/wood.jpg")->textureID);
+    } 
 }
 
 void G_RenderSceneShadowedFull(bsp_tree & scene) 
 {
     draw_crosshairs();
+
 	G_StartFrame();
     G_RenderShadowDepth(scene); 
     G_RenderToHDRColorBuffer(scene);
+
+    RenderGun(scene);
 
     // at this point the full G buffer is accessible, though the color buffer hasn't been remapped
     // that happens in the hdr pass (G_RenderFinalFrame()) 
@@ -370,7 +410,6 @@ void G_RenderSceneShadowedFull(bsp_tree & scene)
 
     // post processing can happen here
     G_PostProcessing();
-
 }
 
 void G_RenderOverlay() 
@@ -397,14 +436,16 @@ void G_RenderEditorGrid(editor_render_context & rendercontext)
         glUniformMatrix4fv(editorGrid.uniformsIDS.clipToWorld, 1,  GL_FALSE,glm::value_ptr(rendercontext.clipToWorld));
         R_RenderFullScreenQuad(); 
     } 
-    unbind_shader();
-    
+    unbind_shader(); 
 }
 
 void G_RenderLevelEditor(editor_render_context & renderContext) 
 { 
     G_RenderEditorGrid(renderContext);
-    R_DrawLines();  
+    R_DrawLines();
+    char buff[128];
+    sprintf(buff, "[%.2g,%.2g]", renderContext.cursorWorldPosition.x, renderContext.cursorWorldPosition.z);
+    R_DrawText(buff, gContext.mousePosition.x, gContext.windowHeight - gContext.mousePosition.y, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), GameFont::Ariel);
 }
 
 void G_RenderTitleScreen() 

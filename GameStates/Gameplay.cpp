@@ -45,7 +45,7 @@ GAMESTATE_UPDATE(Gameplay)
     if (bsp_raycast(main_player.Position, main_player.Forward, hit, scene)) 
     {         
         set_hit_highlighted();
-   //   debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
+        debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
     }
 
     // handle jumping

@@ -7,6 +7,7 @@ struct editor_render_context
 {
     glm::mat4 clipToWorld;
     glm::vec3 cameraPosition;
+    glm::vec3 cursorWorldPosition;
 };
 
 #endif

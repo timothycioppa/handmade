@@ -10,6 +10,7 @@ float sqrMag(const glm::vec3 & v)
 { 
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
+#include <stdio.h>
 
 bool aabb_contains(const glm::vec3 & pos, const AABB & bb)
 {

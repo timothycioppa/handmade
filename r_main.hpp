@@ -32,6 +32,8 @@ enum GameFont
 void R_Init();
 void R_Cleanup() ;
 
+void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & localToWorld, bsp_tree & scene, RenderContext & context, int texID);
+
 void R_RenderFullScreenQuad();
 void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c) ;
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture);

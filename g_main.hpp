@@ -30,7 +30,6 @@ struct FrameBufferInfo
 extern float lightStrength;
 
 extern shader_depthPass shadowDepthPass;
-extern depth_Uniforms shadowDepthUniforms;
 
 extern shader_hdr_blit fullScreenHDRBlit;
 extern hdr_uniforms hdrBlitUniforms;
@@ -40,7 +39,6 @@ extern unsigned int colorBufferUniformID;
 extern TextureStore gTextureRepository;
 
 void G_Init();
-
 
 void G_RenderFinalFrame();
 void G_StartFrame();

@@ -3,6 +3,10 @@
 #include "bsp.hpp"
 #include <map>
 
+#include "player.hpp"
+#include "TextureStore.hpp"
+#include "ShaderStore.hpp"
+
 unsigned int quadVAO;
 unsigned int quadVBO;
 
@@ -24,7 +28,7 @@ static_mesh quad;
 void initFSQ(); // initialize mesh for full screen quad
 void initializeLineBuffers() ; // initialize mesh for line rendering
 
-#define MAX_LINES 100
+#define MAX_LINES 1000
 
 unsigned int lineVAO;
 unsigned int lineVBO;
@@ -40,10 +44,12 @@ int _vertexCount = 0;
 
 void R_Init() 
 {
+    initialize_shader_store();
+
     COMPILE_SHADER("Shaders/coloredRect.vert", "Shaders/coloredRect.frag", coloredRect)
     COMPILE_SHADER("Shaders/texturedRect.vert", "Shaders/texturedRect.frag", texturedRect)
     COMPILE_SHADER("Shaders/standardShadow.vert", "Shaders/standardShadow.frag", standardShadowed)
-    COMPILE_SHADER("Shaders/lineRender.vert", "Shaders/lineRender.frag", standardLine)
+   // COMPILE_SHADER("Shaders/lineRender.vert", "Shaders/lineRender.frag", standardLine)
     
     load_mesh("Models/wall.obj", quad);
 
@@ -63,7 +69,8 @@ void R_Init()
 
 void R_Cleanup() 
 { 
-    RELEASE_SHADER(standardLine)
+    release_shader_store();
+ //   RELEASE_SHADER(standardLine)
     RELEASE_SHADER(coloredRect)
     RELEASE_SHADER(texturedRect)
     RELEASE_SHADER(standardShadowed)
@@ -116,7 +123,9 @@ void R_DrawLines()
         return;
     }
 
-    BIND_SHADER(standardLine);
+
+    bind_shader(ShaderCode::LINE);    
+    //BIND_SHADER(standardLine);
     glDisable(GL_DEPTH_TEST);
      
     glBindVertexArray(lineVAO);
@@ -125,7 +134,6 @@ void R_DrawLines()
         glBufferSubData(GL_ARRAY_BUFFER, 0, _vertexCount * sizeof(glm::vec2), &lineData[0]);     
         glBindBuffer(GL_ARRAY_BUFFER, colorVBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, _vertexCount * sizeof(glm::vec3), &colorData[0]);         
-   
         glDrawArrays(GL_LINES, 0, _vertexCount);
     }
 
@@ -177,6 +185,8 @@ void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture)
     }
     unbind_shader();
 }
+
+
 
 void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_tree & tree)
 {    
@@ -266,6 +276,60 @@ void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext &
 
     renderable_index & indices = tree.segments[node->segmentIndex].renderIndices;
     doRender(indices, tree, context);    
+
+}
+
+void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scene, RenderContext & context, int texID) { 
+   
+    BIND_SHADER(standardShadowed)
+    char lightBuff[64];
+    
+    for (int i = 0; i < scene.lightCount; i++) 
+    {
+        light & l = scene.lights[i];
+
+        sprintf(lightBuff, "lights[%d].position", i);
+        unsigned int posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        set_float3(posID, l.Position);
+        
+        sprintf(lightBuff, "lights[%d].color", i);
+        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        set_float3(posID, l.Color);
+        
+        sprintf(lightBuff, "lights[%d].intensity", i);
+        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        set_float(posID, l.intensity);
+    }
+    
+
+
+    glm::mat4 modelView = main_player.camData.view * model;
+    glm::mat4 modelViewProj = main_player.camData.projection * modelView;
+
+
+    set_texture(standardShadowed.uniformIDS.shadowMapID,  context.shadowMapID, 1);
+    set_mat4(standardShadowed.uniformIDS.viewID, context.v);
+    set_mat4(standardShadowed.uniformIDS.lightSpaceID, context.lightSpace);
+    set_float3(standardShadowed.uniformIDS.cameraPositionID, context.cameraPosition);
+    set_float3(standardShadowed.uniformIDS.cameraForwardID, context.cameraForward);
+    set_float3(standardShadowed.uniformIDS.lightPosID, context.lightPosition);
+    set_float3(standardShadowed.uniformIDS.lightColorID, context.lightColor);
+    set_float(standardShadowed.uniformIDS.lightStrengthID, context.lightPower);
+    set_float(standardShadowed.uniformIDS.appTimeID, context.totalTime);
+    set_float(standardShadowed.uniformIDS.deltaTimeID,context.deltaTime);
+    set_float(standardShadowed.uniformIDS.cosTimeID, context.cosTime);
+    set_float(standardShadowed.uniformIDS.sinTimeID, context.sinTime);
+    set_texture(standardShadowed.uniformIDS.mainTexID, texID, 0);
+    set_float3(standardShadowed.uniformIDS.diffuseID, {1,1,1});
+    set_float3(standardShadowed.uniformIDS.specularID, {1,1,1});
+    set_float(standardShadowed.uniformIDS.shininessID, 1.0f);
+    set_mat4(standardShadowed.uniformIDS.modelID, model);
+    set_mat4(standardShadowed.uniformIDS.modelViewID, modelView);
+    set_mat4(standardShadowed.uniformIDS.modelViewProjID, modelViewProj);
+
+    render_mesh(mesh);
+    unbind_shader(); 
+
 }
 
 void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)

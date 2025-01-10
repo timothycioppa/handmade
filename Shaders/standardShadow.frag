@@ -88,13 +88,17 @@ float calculateFog(vec3 pos)
 
 void main()
 {          
+
+    // vec2 tex_st = vec2(2.0f, 2.0f);
+    // vec2 tex_offset = vec2(time.totalTime * 0.025f, time.totalTime * 0.025f);
+    // vec2 texCoords = (fs_in.TexCoords + tex_offset) * tex_st;
+
     float shadowValue = ShadowCalculation(fs_in.FragPosLightSpace);
-    vec3 texCol = texture(material.mainTex, fs_in.TexCoords).rgb; 
-    float ambientFactor = 1.0f;
-    vec3 lightAmbient = ambientFactor *  lightColor;
+    vec3 textureColor = texture(material.mainTex,fs_in.TexCoords).rgb; 
+    vec3 lightAmbientColor = lightPower * lightColor;
     vec3 norm = normalize(fs_in.Normal);
     vec3 viewDir = normalize(unity_CameraPosition - fs_in.FragPos);
-    vec3 result = vec3(0,0,0);
+    vec3 calculatedColor = vec3(0,0,0);
 
     int i = 0;
 
@@ -109,17 +113,16 @@ void main()
         vec3 reflectDir = reflect(-lightDir, norm);  
         float specValue = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
         vec3 specular = specValue * lights[i].color;      
-        result += lights[i].intensity * (diffuse + specular) * invSqDist;     
+        calculatedColor += lights[i].intensity * (diffuse + specular) * invSqDist;     
     }
 
     float fog = calculateFog(fs_in.FragPos);
     float minShadow = 0.2f;
     float remappedShadow = minShadow + (1.0f - minShadow) * (1.0f - shadowValue);
     float multiplier = fog * remappedShadow;
-    vec3 finalColor = lightAmbient + result;
-    finalColor *= texCol;
+    vec3 finalColor = multiplier * (lightAmbientColor + calculatedColor) * textureColor;
 
-    FragColor = vec4(multiplier * finalColor, 1.0);
+    FragColor = vec4(finalColor * multiplier, 1.0);
     FragNormal = 0.5f * (norm + 1.5f);
     FragPosition = fs_in.FragPos.xyz;
 }

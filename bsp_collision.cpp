@@ -1,5 +1,7 @@
 #include "bsp_collision.hpp"
 
+#define LL(i) printf("%d\n", i)
+
 bool test_pos_bsp(const glm::vec3 & testPos, bsp_node * node, bsp_tree & tree) 
 { 
     wall_segment & seg = tree.segments[node->segmentIndex];
@@ -12,13 +14,15 @@ bool test_pos_bsp(const glm::vec3 & testPos, bsp_node * node, bsp_tree & tree)
             return test_pos_bsp(testPos, node->front, tree);
         } else
         {
-            sector & s = tree.sectors[ seg.frontSectorID];
-
-            if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
+            if (seg.frontSectorID > -1) 
             {
-                return true;
+                sector & s = tree.sectors[ seg.frontSectorID];
+            
+                if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
+                {
+                    return true;
+                }
             }
-
             return false;
         }
     } 
@@ -29,13 +33,15 @@ bool test_pos_bsp(const glm::vec3 & testPos, bsp_node * node, bsp_tree & tree)
             return test_pos_bsp(testPos, node->back, tree);
         } else
         {
-            sector & s = tree.sectors[seg.backSectorID];
-
-            if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
+            if (seg.backSectorID > -1) 
             {
-                return true;
+                sector & s = tree.sectors[seg.backSectorID];
+            
+                if (testPos.y >= s.floorHeight && testPos.y + 2.0f <= s.ceilingHeight) 
+                {
+                    return true;
+                }
             }
-
             return false;
         }
     } 
@@ -75,7 +81,7 @@ bool try_get_intersection(const ray_t & ray, const AABB & bb, boxIntersection & 
     int index = -1;
 
     for (int i = 0; i < 6; i++)
-    {            
+    {
         float dist = -1.0f;
         
         if (distance_to_plane(ray, planes[i], &dist))
@@ -92,9 +98,11 @@ bool try_get_intersection(const ray_t & ray, const AABB & bb, boxIntersection & 
 
     }
 
+    float padding = 0.0001f;
     // actually hit a side of the wall
     if (index > -1)
     {
+        minDist -= padding;
         intersection.point = ray.origin + minDist * ray.direction;
         intersection.side = (BoxSide) index;
         return aabb_contains(intersection.point, bb);
