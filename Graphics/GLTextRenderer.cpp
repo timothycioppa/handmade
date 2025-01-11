@@ -90,23 +90,21 @@
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    COMPILE_SHADER("Shaders/text.vert", "Shaders/text.frag", textData->shader);
-    textData->uniforms.projection = glm::ortho(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height));
-    
+    textData->projection = glm::ortho(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height));
     return true;
 }
 
 void DrawText(std::string text, float x, float y, float scale, glm::vec3 color, FontInfo * textData)  
-{    
-    
+{       
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
 
-    BIND_SHADER(textData->shader); 
-    set_mat4(textData->shader.uniformIDS.projection, textData->uniforms.projection);
-    set_float3((textData->shader).uniformIDS.texColor, color);
+    shader_data sData = bind_shader(ShaderCode::RENDER_TEXT);
+    text_render_ids & uniformIDS = *((text_render_ids *) sData.uniformIDS);
+    set_mat4(uniformIDS.projection, textData->projection);
+    set_float3(uniformIDS.texColor, color);
     
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray((textData->_VAO));
@@ -152,8 +150,8 @@ void DrawText(std::string text, float x, float y, float scale, glm::vec3 color, 
 
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
-    
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
+    unbind_shader();
 }

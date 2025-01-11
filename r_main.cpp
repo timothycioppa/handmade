@@ -10,16 +10,8 @@
 unsigned int quadVAO;
 unsigned int quadVBO;
 
-shader_coloredRect coloredRect;
-coloredrect_uniforms coloredRectUniforms;
 
-shader_texturedRect texturedRect;
-texrect_uniforms texRectUniforms;
 
-shader_shadowed standardShadowed;
-
-shader_render_lines standardLine;
-line_render_uniforms standardLineUniforms;
 
 std::map <GameFont, FontInfo> fontmap;
 
@@ -46,11 +38,6 @@ void R_Init()
 {
     initialize_shader_store();
 
-    COMPILE_SHADER("Shaders/coloredRect.vert", "Shaders/coloredRect.frag", coloredRect)
-    COMPILE_SHADER("Shaders/texturedRect.vert", "Shaders/texturedRect.frag", texturedRect)
-    COMPILE_SHADER("Shaders/standardShadow.vert", "Shaders/standardShadow.frag", standardShadowed)
-   // COMPILE_SHADER("Shaders/lineRender.vert", "Shaders/lineRender.frag", standardLine)
-    
     load_mesh("Models/wall.obj", quad);
 
     // generate mesh for full screen quad rendering
@@ -70,11 +57,6 @@ void R_Init()
 void R_Cleanup() 
 { 
     release_shader_store();
- //   RELEASE_SHADER(standardLine)
-    RELEASE_SHADER(coloredRect)
-    RELEASE_SHADER(texturedRect)
-    RELEASE_SHADER(standardShadowed)
-
     release_mesh(quad);
 
     // delete FSQ gpu data
@@ -123,9 +105,8 @@ void R_DrawLines()
         return;
     }
 
-
     bind_shader(ShaderCode::LINE);    
-    //BIND_SHADER(standardLine);
+    
     glDisable(GL_DEPTH_TEST);
      
     glBindVertexArray(lineVAO);
@@ -164,25 +145,31 @@ void R_RenderFullScreenQuad()
 
 void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c) 
 { 
-    BIND_SHADER(coloredRect);
+    shader_data sData = bind_shader(ShaderCode::COLORED_RECT);
+    colored_rect_ids& uniformIDS = *((colored_rect_ids*) sData.uniformIDS);
+    
     {
-        set_float3(coloredRect.uniformsIDS.dimensions, d);
-        set_float3(coloredRect.uniformsIDS.lowerLeft, ll);
-        set_float3(coloredRect.uniformsIDS.color, c);
+        set_float3(uniformIDS.dimensions, d);
+        set_float3(uniformIDS.lowerLeft, ll);
+        set_float3(uniformIDS.color, c);
         R_RenderFullScreenQuad();
     }
+
     unbind_shader();
 }
 
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture) 
 { 
-    BIND_SHADER(texturedRect);
+    shader_data sData = bind_shader(ShaderCode::TEXTURED_RECT);
+    textured_rect_ids& uniformIDS = *((textured_rect_ids*) sData.uniformIDS);
+    
     {
-        set_float3(texturedRect.uniformsIDS.dimensions, d);
-        set_float3(texturedRect.uniformsIDS.lowerLeft, ll);
-        set_texture(texturedRect.uniformsIDS.texID, texture->textureID, 0);
+        set_float3(uniformIDS.dimensions, d);
+        set_float3(uniformIDS.lowerLeft, ll);
+        set_texture(uniformIDS.texID, texture->textureID, 0);
         R_RenderFullScreenQuad();
     }
+
     unbind_shader();
 }
 
@@ -195,6 +182,9 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
         return;
     }
 
+    standard_shadow_ids & uniformIDS = *get_uniform_ids(ShaderCode::STANDARD_SHADOWED, standard_shadow_ids);
+
+
     renderData.rendered = true;
     bool highlight = IS_HIGHLIGHTED(renderData);
     float scale = highlight ? 100.0f : 1.0f;
@@ -204,15 +194,15 @@ void SHADOW_RENDER(node_render_data & renderData, RenderContext & context, bsp_t
     glm::mat4 modelViewProj = context.p * modelView;
 
     // material uniforms
-    set_texture(standardShadowed.uniformIDS.mainTexID, renderData.material.mainTexture->textureID, 0);
-    set_float3(standardShadowed.uniformIDS.diffuseID,scale *  renderData.material.diffuse);
-    set_float3(standardShadowed.uniformIDS.specularID, scale * renderData.material.specular);
-    set_float(standardShadowed.uniformIDS.shininessID, scale * renderData.material.shininess);
+    set_texture(uniformIDS.mainTexID, renderData.material.mainTexture->textureID, 0);
+    set_float3(uniformIDS.diffuseID,scale *  renderData.material.diffuse);
+    set_float3(uniformIDS.specularID, scale * renderData.material.specular);
+    set_float(uniformIDS.shininessID, scale * renderData.material.shininess);
 
     // matrix uniforms
-    set_mat4(standardShadowed.uniformIDS.modelID, model);
-    set_mat4(standardShadowed.uniformIDS.modelViewID, modelView);
-    set_mat4(standardShadowed.uniformIDS.modelViewProjID, modelViewProj);
+    set_mat4(uniformIDS.modelID, model);
+    set_mat4(uniformIDS.modelViewID, modelView);
+    set_mat4(uniformIDS.modelViewProjID, modelViewProj);
 
     render_mesh(quad);  
 }
@@ -279,9 +269,12 @@ void render_shadowed_recursive(bsp_node * node, bsp_tree & tree, RenderContext &
 
 }
 
+
 void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scene, RenderContext & context, int texID) { 
    
-    BIND_SHADER(standardShadowed)
+    shader_data shaderData = bind_shader(ShaderCode::STANDARD_SHADOWED);
+    standard_shadow_ids *uniformIDS = (standard_shadow_ids*) shaderData.uniformIDS;
+    
     char lightBuff[64];
     
     for (int i = 0; i < scene.lightCount; i++) 
@@ -289,15 +282,68 @@ void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scen
         light & l = scene.lights[i];
 
         sprintf(lightBuff, "lights[%d].position", i);
-        unsigned int posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        unsigned int posID =  glGetUniformLocation(shaderData.programID, lightBuff);
         set_float3(posID, l.Position);
         
         sprintf(lightBuff, "lights[%d].color", i);
-        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        posID =  glGetUniformLocation(shaderData.programID, lightBuff);
         set_float3(posID, l.Color);
         
         sprintf(lightBuff, "lights[%d].intensity", i);
-        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        posID =  glGetUniformLocation(shaderData.programID, lightBuff);
+        set_float(posID, l.intensity);
+    }
+
+    glm::mat4 modelView = main_player.camData.view * model;
+    glm::mat4 modelViewProj = main_player.camData.projection * modelView;
+
+    set_texture(uniformIDS->shadowMapID,  context.shadowMapID, 1);
+    set_mat4(uniformIDS->viewID, context.v);
+    set_mat4(uniformIDS->lightSpaceID, context.lightSpace);
+    set_float3(uniformIDS->cameraPositionID, context.cameraPosition);
+    set_float3(uniformIDS->cameraForwardID, context.cameraForward);
+    set_float3(uniformIDS->lightPosID, context.lightPosition);
+    set_float3(uniformIDS->lightColorID, context.lightColor);
+    set_float(uniformIDS->lightStrengthID, context.lightPower);
+    set_float(uniformIDS->appTimeID, context.totalTime);
+    set_float(uniformIDS->deltaTimeID,context.deltaTime);
+    set_float(uniformIDS->cosTimeID, context.cosTime);
+    set_float(uniformIDS->sinTimeID, context.sinTime);
+    set_texture(uniformIDS->mainTexID, texID, 0);
+    set_float3(uniformIDS->diffuseID, {1,1,1});
+    set_float3(uniformIDS->specularID, {1,1,1});
+    set_float(uniformIDS->shininessID, 1.0f);
+    set_mat4(uniformIDS->modelID, model);
+    set_mat4(uniformIDS->modelViewID, modelView);
+    set_mat4(uniformIDS->modelViewProjID, modelViewProj);
+
+    render_mesh(mesh);
+    unbind_shader(); 
+}
+
+
+void R_RenderMeshShadowed_OLD(static_mesh & mesh, glm::mat4 & model, bsp_tree & scene, RenderContext & context, int texID) { 
+   
+    shader_data sData = bind_shader(ShaderCode::STANDARD_SHADOWED);
+    unsigned int programID = sData.programID;
+    standard_shadow_ids & uniformIDS = *((standard_shadow_ids *) sData.uniformIDS);
+
+    char lightBuff[64];
+    
+    for (int i = 0; i < scene.lightCount; i++) 
+    {
+        light & l = scene.lights[i];
+
+        sprintf(lightBuff, "lights[%d].position", i);
+        unsigned int posID =  glGetUniformLocation(programID, lightBuff);
+        set_float3(posID, l.Position);
+        
+        sprintf(lightBuff, "lights[%d].color", i);
+        posID =  glGetUniformLocation(programID, lightBuff);
+        set_float3(posID, l.Color);
+        
+        sprintf(lightBuff, "lights[%d].intensity", i);
+        posID =  glGetUniformLocation(programID, lightBuff);
         set_float(posID, l.intensity);
     }
     
@@ -307,25 +353,25 @@ void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scen
     glm::mat4 modelViewProj = main_player.camData.projection * modelView;
 
 
-    set_texture(standardShadowed.uniformIDS.shadowMapID,  context.shadowMapID, 1);
-    set_mat4(standardShadowed.uniformIDS.viewID, context.v);
-    set_mat4(standardShadowed.uniformIDS.lightSpaceID, context.lightSpace);
-    set_float3(standardShadowed.uniformIDS.cameraPositionID, context.cameraPosition);
-    set_float3(standardShadowed.uniformIDS.cameraForwardID, context.cameraForward);
-    set_float3(standardShadowed.uniformIDS.lightPosID, context.lightPosition);
-    set_float3(standardShadowed.uniformIDS.lightColorID, context.lightColor);
-    set_float(standardShadowed.uniformIDS.lightStrengthID, context.lightPower);
-    set_float(standardShadowed.uniformIDS.appTimeID, context.totalTime);
-    set_float(standardShadowed.uniformIDS.deltaTimeID,context.deltaTime);
-    set_float(standardShadowed.uniformIDS.cosTimeID, context.cosTime);
-    set_float(standardShadowed.uniformIDS.sinTimeID, context.sinTime);
-    set_texture(standardShadowed.uniformIDS.mainTexID, texID, 0);
-    set_float3(standardShadowed.uniformIDS.diffuseID, {1,1,1});
-    set_float3(standardShadowed.uniformIDS.specularID, {1,1,1});
-    set_float(standardShadowed.uniformIDS.shininessID, 1.0f);
-    set_mat4(standardShadowed.uniformIDS.modelID, model);
-    set_mat4(standardShadowed.uniformIDS.modelViewID, modelView);
-    set_mat4(standardShadowed.uniformIDS.modelViewProjID, modelViewProj);
+    set_texture(uniformIDS.shadowMapID,  context.shadowMapID, 1);
+    set_mat4(uniformIDS.viewID, context.v);
+    set_mat4(uniformIDS.lightSpaceID, context.lightSpace);
+    set_float3(uniformIDS.cameraPositionID, context.cameraPosition);
+    set_float3(uniformIDS.cameraForwardID, context.cameraForward);
+    set_float3(uniformIDS.lightPosID, context.lightPosition);
+    set_float3(uniformIDS.lightColorID, context.lightColor);
+    set_float(uniformIDS.lightStrengthID, context.lightPower);
+    set_float(uniformIDS.appTimeID, context.totalTime);
+    set_float(uniformIDS.deltaTimeID,context.deltaTime);
+    set_float(uniformIDS.cosTimeID, context.cosTime);
+    set_float(uniformIDS.sinTimeID, context.sinTime);
+    set_texture(uniformIDS.mainTexID, texID, 0);
+    set_float3(uniformIDS.diffuseID, {1,1,1});
+    set_float3(uniformIDS.specularID, {1,1,1});
+    set_float(uniformIDS.shininessID, 1.0f);
+    set_mat4(uniformIDS.modelID, model);
+    set_mat4(uniformIDS.modelViewID, modelView);
+    set_mat4(uniformIDS.modelViewProjID, modelViewProj);
 
     render_mesh(mesh);
     unbind_shader(); 
@@ -334,7 +380,10 @@ void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scen
 
 void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
 {
-    BIND_SHADER(standardShadowed)
+    shader_data sData = bind_shader(ShaderCode::STANDARD_SHADOWED);
+    unsigned int programID = sData.programID;
+    standard_shadow_ids & uniformIDS = *((standard_shadow_ids *) sData.uniformIDS);
+
     char lightBuff[64];
     
     for (int i = 0; i < scene.lightCount; i++) 
@@ -342,31 +391,31 @@ void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context)
         light & l = scene.lights[i];
 
         sprintf(lightBuff, "lights[%d].position", i);
-        unsigned int posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        unsigned int posID =  glGetUniformLocation(programID, lightBuff);
         set_float3(posID, l.Position);
         
         sprintf(lightBuff, "lights[%d].color", i);
-        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        posID =  glGetUniformLocation(programID, lightBuff);
         set_float3(posID, l.Color);
         
         sprintf(lightBuff, "lights[%d].intensity", i);
-        posID =  glGetUniformLocation(standardShadowed.shader.programID, lightBuff);
+        posID =  glGetUniformLocation(programID, lightBuff);
         set_float(posID, l.intensity);
     }
 
     // common uniforms for all objects rendered
-    set_texture(standardShadowed.uniformIDS.shadowMapID,  context.shadowMapID, 1);
-    set_mat4(standardShadowed.uniformIDS.viewID, context.v);
-    set_mat4(standardShadowed.uniformIDS.lightSpaceID, context.lightSpace);
-    set_float3(standardShadowed.uniformIDS.cameraPositionID, context.cameraPosition);
-    set_float3(standardShadowed.uniformIDS.cameraForwardID, context.cameraForward);
-    set_float3(standardShadowed.uniformIDS.lightPosID, context.lightPosition);
-    set_float3(standardShadowed.uniformIDS.lightColorID, context.lightColor);
-    set_float(standardShadowed.uniformIDS.lightStrengthID, context.lightPower);
-    set_float(standardShadowed.uniformIDS.appTimeID, context.totalTime);
-    set_float(standardShadowed.uniformIDS.deltaTimeID,context.deltaTime);
-    set_float(standardShadowed.uniformIDS.cosTimeID, context.cosTime);
-    set_float(standardShadowed.uniformIDS.sinTimeID, context.sinTime);
+    set_texture(uniformIDS.shadowMapID,  context.shadowMapID, 1);
+    set_mat4(uniformIDS.viewID, context.v);
+    set_mat4(uniformIDS.lightSpaceID, context.lightSpace);
+    set_float3(uniformIDS.cameraPositionID, context.cameraPosition);
+    set_float3(uniformIDS.cameraForwardID, context.cameraForward);
+    set_float3(uniformIDS.lightPosID, context.lightPosition);
+    set_float3(uniformIDS.lightColorID, context.lightColor);
+    set_float(uniformIDS.lightStrengthID, context.lightPower);
+    set_float(uniformIDS.appTimeID, context.totalTime);
+    set_float(uniformIDS.deltaTimeID,context.deltaTime);
+    set_float(uniformIDS.cosTimeID, context.cosTime);
+    set_float(uniformIDS.sinTimeID, context.sinTime);
 
     glEnable(GL_CULL_FACE);
     render_shadowed_recursive(scene.root, scene, context);

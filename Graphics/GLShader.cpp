@@ -14,13 +14,6 @@ void shader_init_uniforms(shader_hdr_blit & shader)
     shader.uniformIDS.exposure = glGetUniformLocation(pID, "exposure");
 }
 
-void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms) 
-{
-    set_texture(shader.uniformIDS.hdrBuffer, uniforms.hdrBuffer, 0);
-    set_int(shader.uniformIDS.hdr, uniforms.hdr);
-    set_float(shader.uniformIDS.exposure, uniforms.exposure);
-}
-
 void shader_init_uniforms(shader_blur & shader) 
 {
     unsigned int pID = shader.shader.programID;
@@ -33,31 +26,6 @@ void shader_init_uniforms(shader_grid & shader)
     unsigned int pID = shader.shader.programID;
     shader.uniformsIDS.cameraPosition =  glGetUniformLocation(pID, "cameraPosition");
     shader.uniformsIDS.clipToWorld =  glGetUniformLocation(pID, "clipToWorld");
-}
-
-
-void shader_init_uniforms(shader_shadowed & shader) 
-{
-    unsigned int pID = shader.shader.programID;
-    shader.uniformIDS.shadowMapID = glGetUniformLocation(pID, "unity_ShadowMap");
-    shader.uniformIDS.mainTexID = glGetUniformLocation(pID, "material.mainTex");
-    shader.uniformIDS.diffuseID = glGetUniformLocation(pID, "material.diffuse");
-    shader.uniformIDS.specularID = glGetUniformLocation(pID, "material.specular");
-    shader.uniformIDS.shininessID = glGetUniformLocation(pID, "material.shininess");
-    shader.uniformIDS.modelID = glGetUniformLocation(pID, "unity_M");
-    shader.uniformIDS.viewID = glGetUniformLocation(pID, "unity_V");
-    shader.uniformIDS.modelViewID = glGetUniformLocation(pID, "unity_MV");
-    shader.uniformIDS.modelViewProjID = glGetUniformLocation(pID, "unity_MVP");
-    shader.uniformIDS.lightSpaceID = glGetUniformLocation(pID, "lightSpaceMatrix");
-    shader.uniformIDS.cameraPositionID = glGetUniformLocation(pID, "unity_CameraPosition");
-    shader.uniformIDS.cameraForwardID = glGetUniformLocation(pID, "unity_CameraForward");
-    shader.uniformIDS.lightPosID = glGetUniformLocation(pID, "unity_LightPosition");
-    shader.uniformIDS.lightColorID = glGetUniformLocation(pID, "lightColor");
-    shader.uniformIDS.lightStrengthID = glGetUniformLocation(pID, "lightPower");    
-    shader.uniformIDS.appTimeID = glGetUniformLocation(pID, "time.totalTime");
-    shader.uniformIDS.deltaTimeID = glGetUniformLocation(pID, "time.deltaTime");
-    shader.uniformIDS.cosTimeID = glGetUniformLocation(pID, "time.cosTime");
-    shader.uniformIDS.sinTimeID = glGetUniformLocation(pID, "time.sinTime");
 }
 
 void shader_init_uniforms(shader_texturedRect & shader) 

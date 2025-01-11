@@ -7,6 +7,7 @@
 #include <stb_image.h>
 #include <ft2build.h>
 #include <iostream>
+#include "../../ShaderStore.hpp"
 #include FT_FREETYPE_H  
 
 /// Holds all state information relevant to a character as loaded using FreeType
@@ -22,8 +23,7 @@ struct FontInfo
 { 
     GLuint _VAO, _VBO;
     std::map<GLchar, Character> Characters;
-    shader_text_rendering shader;
-    text_render_uniforms uniforms;
+    glm::mat4 projection;
 };
 
  bool InitializeFont(std::string font_name, int width, int height,  FontInfo * textData) ;

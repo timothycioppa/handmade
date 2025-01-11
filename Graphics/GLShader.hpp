@@ -51,12 +51,6 @@ struct screen_blit_uniforms {
     unsigned int screenTexture;
 };
 
-struct hdr_uniforms 
-{ 
-    unsigned int hdrBuffer;
-    unsigned int hdr;
-    float exposure;
-};
 
 struct shader_render_lines { 
     compiled_shader shader;
@@ -82,32 +76,6 @@ struct text_render_uniforms
     glm::vec3 textColor;
     unsigned int text;
     glm::mat4 projection;
-};
-
-struct shader_shadowed
-{
-    compiled_shader shader;
-    struct { 
-        unsigned int shadowMapID;
-        unsigned int mainTexID;
-        unsigned int diffuseID;
-        unsigned int specularID;
-        unsigned int shininessID;
-        unsigned int modelID;
-        unsigned int viewID;
-        unsigned int modelViewID;
-        unsigned int modelViewProjID;
-        unsigned int lightSpaceID;
-        unsigned int lightPosID;
-        unsigned int lightColorID;
-        unsigned int lightStrengthID;
-        unsigned int cameraPositionID;
-        unsigned int cameraForwardID;
-        unsigned int appTimeID;
-        unsigned int deltaTimeID;
-        unsigned int cosTimeID;
-        unsigned int sinTimeID;
-    } uniformIDS;
 };
 
 struct shader_texturedRect 
@@ -177,7 +145,6 @@ void shader_init_uniforms(shader_blur & shader);
 
 void shader_init_uniforms(shader_grid & shader);
 void shader_init_uniforms(shader_fullscreenBlit & shader);
-void shader_init_uniforms(shader_shadowed & shader) ;
 void shader_init_uniforms(shader_texturedRect & shader) ;
 void shader_init_uniforms(shader_coloredRect & shader) ;
 void shader_init_uniforms(shader_depthPass & shader) ;
@@ -192,7 +159,6 @@ void set_uniforms(shader_texturedRect & shader, texrect_uniforms & uniforms);
 void set_uniforms(shader_depthPass & shader, depth_Uniforms & uniforms);
 void set_uniforms(shader_fullscreenBlit & shader, screen_blit_uniforms & uniforms);
 void set_uniforms(shader_text_rendering & shader, text_render_uniforms & uniforms);
-void set_uniforms(shader_hdr_blit & shader, hdr_uniforms & uniforms);
 
 
 void set_int(GLuint id, const int value) ;

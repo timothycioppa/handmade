@@ -10,12 +10,11 @@ enum ShaderCode
 #undef SHADER_ENTRY
 
 // NOTE: UPDATE THIS WHENEVER YOU MODIFY THE SHADER ENTRY FILE!!!!!
-#define NUM_SHADERS 8
-
+#define NUM_SHADERS 9
 
 struct shader_entry 
 { 
-    ShaderCode shaderCode;
+    ShaderCode shaderCode;    
     unsigned int uniformStructSize;
     unsigned int uniformStructOffset;
 };
@@ -80,14 +79,28 @@ struct textured_rect_ids
     unsigned int texID;    
 };
 
+struct text_render_ids
+{
+    unsigned int texColor;
+    unsigned int text;
+    unsigned int projection;
+};
+
 struct line_ids 
 { 
     // no parameters    
 };
 
+struct shader_data 
+{ 
+    unsigned int programID;
+    void* uniformIDS;
+};
 
 void initialize_shader_store() ;
 void release_shader_store() ;
-void bind_shader(ShaderCode code);
-
+shader_data bind_shader(ShaderCode code);
+void* get_uniform_ids_internal(ShaderCode code);
+unsigned int program_id(ShaderCode code);
+#define get_uniform_ids(shaderCode, T) (T*) get_uniform_ids_internal(shaderCode)
 #endif

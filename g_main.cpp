@@ -8,16 +8,9 @@
 #include "include/stb_image.h"
 #include "include/glm/gtc/type_ptr.hpp"
 #include "editor_controller.hpp"
+#include "ShaderStore.hpp"
 
 float lightStrength = 0.5f;
-
-shader_grid editorGrid;
-shader_blur blurShader;
-
-shader_depthPass shadowDepthPass;
-
-shader_hdr_blit fullScreenHDRBlit;
-hdr_uniforms hdrBlitUniforms;
 
 FrameBufferInfo shadowDepthMapFB;
 FrameBufferInfo hdrColorBufferFB;
@@ -37,13 +30,6 @@ void    GenerateLightData();
 
 void G_Init() 
 {
-
-
-    COMPILE_SHADER("Shaders/depth.vert", "Shaders/depth.frag", shadowDepthPass)
-    COMPILE_SHADER("Shaders/hdr.vert", "Shaders/hdr.frag", fullScreenHDRBlit);
-    COMPILE_SHADER("Shaders/editorGrid.vert", "Shaders/editorGrid.frag", editorGrid);
-    COMPILE_SHADER("Shaders/blur.vert", "Shaders/blur.frag", blurShader);
-
     load_mesh("Models/wall.obj", quadMesh);
     load_mesh("Models/cube.obj", cubeMesh);
 
@@ -58,8 +44,6 @@ void G_Init()
 
 void G_Cleanup() 
 { 
-    RELEASE_SHADER(shadowDepthPass)
-    RELEASE_SHADER(fullScreenHDRBlit);
     release_mesh(quadMesh);
 
 	for (auto & [key, value] : gTextureRepository.TextureMap ) 
@@ -67,7 +51,6 @@ void G_Cleanup()
 		release_texture(value);
 	}
 }
-
 
 void GenerateHDRColorBuffer() 
 { 
@@ -222,12 +205,13 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
     }
 
     renderable_index & indices = tree.segments[node->segmentIndex].renderIndices;
+    shadow_depth_ids * ids = get_uniform_ids(ShaderCode::SHADOW_DEPTH, shadow_depth_ids);
 
     if (indices.renderableIndex0 > -1)
     {
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace * tree.renderables[indices.renderableIndex0].transform.localToWorldMatrix();             
-        glUniformMatrix4fv(shadowDepthPass.uniformsIDS.local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
+        glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
         render_mesh(quadMesh);
     }
 
@@ -235,14 +219,14 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
     {
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace  * tree.renderables[indices.renderableIndex1].transform.localToWorldMatrix();                        
-        glUniformMatrix4fv(shadowDepthPass.uniformsIDS.local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
+        glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
         render_mesh(quadMesh);
     }
 }
 
 void G_RenderShadowDepth(bsp_tree & scene) 
 { 
-    BIND_SHADER(shadowDepthPass)   
+    bind_shader(ShaderCode::SHADOW_DEPTH); 
     glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowDepthMapFB.fbo);
     glClear(GL_DEPTH_BUFFER_BIT);	                 
@@ -293,11 +277,13 @@ void G_RenderFinalFrame()
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
     
-    BIND_SHADER(fullScreenHDRBlit);
+    shader_data data = bind_shader(ShaderCode::HDR_BLIT);    
+    hdr_blit_ids& uniformIDS = *((hdr_blit_ids*) data.uniformIDS);
+
     {    
-        set_texture(fullScreenHDRBlit.uniformIDS.hdrBuffer,  hdrColorBufferFB.texture, 0);
-        set_int(fullScreenHDRBlit.uniformIDS.hdr, true);
-        set_float(fullScreenHDRBlit.uniformIDS.exposure,  1.0f);
+        set_texture(uniformIDS.hdrBuffer,  hdrColorBufferFB.texture, 0);
+        set_int(uniformIDS.hdr, true);
+        set_float(uniformIDS.exposure,  1.0f);
         R_RenderFullScreenQuad();
     }
 
@@ -331,6 +317,7 @@ void draw_crosshairs()
     R_DrawLine(vertCrosshairStart * ar, vertCrosshairEnd * ar, crossColor);    
 }
 
+
 void G_PostProcessing() 
 { 
 #ifdef DONT_RUN
@@ -344,9 +331,10 @@ void G_PostProcessing()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
         
-        BIND_SHADER(blurShader);
+        bind_shader(ShaderCode::BLUR);
+        blur_ids* ids  = get_uniform_ids(ShaderCode::BLUR, blur_ids);
         {
-            set_texture(blurShader.uniformsIDS.colorBuffer, hdrColorBufferFB.texture, 0);
+            set_texture(ids->colorBuffer, hdrColorBufferFB.texture, 0);
             R_RenderFullScreenQuad();
         }
 
@@ -429,13 +417,15 @@ void G_RenderEditorGrid(editor_render_context & rendercontext)
     glClearColor(0.0f, 0.1f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
     
-    BIND_SHADER(editorGrid);
+    shader_data sData = bind_shader(ShaderCode::EDITOR_GRID);
+    editor_grid_ids & uniformIDS = *((editor_grid_ids*) sData.uniformIDS);    
+
     {
-        glm::vec3 & position = rendercontext.cameraPosition;
-        glUniform2f(editorGrid.uniformsIDS.cameraPosition , position.x, position.z);
-        glUniformMatrix4fv(editorGrid.uniformsIDS.clipToWorld, 1,  GL_FALSE,glm::value_ptr(rendercontext.clipToWorld));
+        glUniform2f(uniformIDS.cameraPosition , rendercontext.cameraPosition.x, rendercontext.cameraPosition.z);
+        glUniformMatrix4fv(uniformIDS.clipToWorld, 1,  GL_FALSE,glm::value_ptr(rendercontext.clipToWorld));
         R_RenderFullScreenQuad(); 
-    } 
+    }
+
     unbind_shader(); 
 }
 
