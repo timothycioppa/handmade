@@ -1,10 +1,10 @@
 #include "Gameplay.hpp"
-#include "../include/glm/glm.hpp"
-#include "../math_utils.hpp"
-#include "../scene_parser.hpp"
-#include "../imgui/imgui.h"
-#include "../include/glm/gtc/type_ptr.hpp"
-#include "../bsp_collision.hpp"
+#include "../../include/glm/glm.hpp"
+#include "../../math_utils.hpp"
+#include "../../scene_parser.hpp"
+#include "../../imgui/imgui.h"
+#include "../../include/glm/gtc/type_ptr.hpp"
+#include "../../bsp_collision.hpp"
 
 #define WALL_TEST_THRESHOLD 2.5f
 float initialYValue;
@@ -23,6 +23,9 @@ void on_sector_changed(sector* oldSector, sector* newSector);
 void clear_single_frame_flags(bsp_tree & tree);
 void set_hit_highlighted();
 
+gameplay_context gameContext;
+
+
 GAMESTATE_INIT(Gameplay)
 { 	   
     load_scene(INITIAL_LEVEL, scene);
@@ -30,6 +33,11 @@ GAMESTATE_INIT(Gameplay)
     ValidateTextures(scene);
 	Player_Init(&context);
     Audio_LoopSound(SoundCode::BACKGROUND_MUSIC);
+
+    gameContext.primaryWeapon.ableTofire = true;
+    gameContext.primaryWeapon.fireDelay = 0.5f;
+    gameContext.primaryWeapon.fireTimer = 0.0f;
+    gameContext.primaryWeapon.projectileSpeed = 100.0f;
 }
 
 GAMESTATE_UPDATE(Gameplay)
@@ -131,11 +139,103 @@ GAMESTATE_UPDATE(Gameplay)
         }  
     }     
 
+    weapon & primaryWeapon = gameContext.primaryWeapon;
+
+
+    if (gameContext.explosion.alive) 
+    {
+        particle_simulation_context p_context = 
+        {
+            gContext.deltaTime,
+            main_player.Position
+        };
+
+        simulate_system(gameContext.explosion, p_context); 
+    }
+
+    // update all active projectiles
+    for (int i = 0; i < MAX_PROJECTILES; i++) 
+    {
+        projectile & p = primaryWeapon.projectiles[i];
+
+        if (p.active) 
+        { 
+            float speed = primaryWeapon.projectileSpeed;
+            p.position += (p.direction * speed * gContext.deltaTime);
+            p.age += gContext.deltaTime;
+
+            if (!test_pos_bsp(p.position, scene)) 
+            { 
+                p.age = 0.0f;
+                p.active = false;
+
+                system_spawn_info info;
+                {
+                    info.initialPosition = p.position;
+                    info.initialVelocity = 10.0f * random_unit_vector();
+                    info.lifetime = random(1.0f, 3.0f);
+                    init_system(gameContext.explosion, info);
+                }
+
+                Audio_PlaySound(SoundCode::PROJECTILE_EXPLOSION);
+
+            } else if (p.age > p.lifetime) 
+            { 
+                p.age = 0.0f;
+                p.active = false;
+            }
+        }
+    }
+
+    // process weapon fire delay
+    if (primaryWeapon.fireTimer > 0.0f) 
+    {
+        primaryWeapon.fireTimer -= gContext.deltaTime;
+        
+        if (primaryWeapon.fireTimer < 0.0f) 
+        { 
+            primaryWeapon.fireTimer = 0.0f;
+            primaryWeapon.ableTofire = true;
+        }
+    }
+
+    // try to fire a projectile
+    if (mouse_button_pressed(MouseButtons::M_LEFT)) 
+    {
+        // fire weapon
+        if (primaryWeapon.ableTofire) 
+        {                 
+            projectile* p = nullptr;
+
+            for (int i = 0; i < MAX_PROJECTILES; i++) 
+            {
+                projectile & proj = primaryWeapon.projectiles[i];
+                if (!proj.active) 
+                {
+                    p = &proj;
+                    break;
+                }
+            }
+
+            if (p != nullptr) 
+            { 
+                p->active = true;
+                p->position = main_player.Position;
+                p->direction = main_player.Forward;
+                p->age = 0.0f;
+                p->lifetime = 5.0f;
+
+                primaryWeapon.fireTimer = primaryWeapon.fireDelay;
+                primaryWeapon.ableTofire = false;
+            }
+
+        }                  
+    }
 }
 
 GAMESTATE_RENDER(Gameplay)
-{
-   G_RenderSceneShadowedFull(scene);	
+{    
+    G_RenderSceneShadowedFull(scene, gameContext);	
 }
 
 GAMESTATE_POSTRENDER(Gameplay)

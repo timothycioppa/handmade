@@ -7,3 +7,4 @@ SHADER_ENTRY(5, COLORED_RECT, "Shaders/coloredRect.vert", "Shaders/coloredRect.f
 SHADER_ENTRY(6, TEXTURED_RECT, "Shaders/texturedRect.vert", "Shaders/texturedRect.frag", textured_rect_ids )
 SHADER_ENTRY(7, LINE, "Shaders/lineRender.vert", "Shaders/lineRender.frag", line_ids )
 SHADER_ENTRY(8, RENDER_TEXT, "Shaders/text.vert", "Shaders/text.frag", text_render_ids )
+SHADER_ENTRY(9, DEFAULT_PARTICLE, "Shaders/particles/default.vert", "Shaders/particles/default.frag", default_particle_ids )

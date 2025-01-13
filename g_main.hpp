@@ -8,6 +8,7 @@
 #include "scene_parser.hpp"
 #include "bsp.hpp"
 #include "GameStates/LevelEditor/editor_render_context.hpp"
+#include "GameStates/Gameplay/gameplay_context.hpp"
 
 struct LightData 
 {
@@ -27,18 +28,18 @@ struct FrameBufferInfo
 	unsigned int positionTexture;
 };
 
-extern float lightStrength;
+
+
 extern LightData lightData;
 extern TextureStore gTextureRepository;
 
 void G_Init();
-
 void G_RenderFinalFrame();
 void G_StartFrame();
-
 void G_RenderShadowDepth(bsp_tree&);
 void G_RenderToHDRColorBuffer(bsp_tree&);
-void G_RenderSceneShadowedFull(bsp_tree&);
+void G_RenderSceneShadowedFull(bsp_tree&, gameplay_context&);
+void G_RenderProjectile(glm::vec3 position, bsp_tree & scene);
 void G_RenderTitleScreen();
 void G_RenderLevelEditor(editor_render_context & renderContext) ;
 void G_RenderOverlay();

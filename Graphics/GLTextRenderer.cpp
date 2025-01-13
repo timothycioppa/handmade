@@ -46,6 +46,7 @@
         unsigned int texture;
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
+     
         glTexImage2D(
             GL_TEXTURE_2D,
             0,
@@ -81,6 +82,7 @@
     FT_Done_FreeType(ft);
 
     glGenVertexArrays(1, &(textData->_VAO));
+    
     glGenBuffers(1, &(textData->_VBO));
     glBindVertexArray(textData->_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, textData->_VBO);
@@ -94,7 +96,7 @@
     return true;
 }
 
-void DrawText(std::string text, float x, float y, float scale, glm::vec3 color, FontInfo * textData)  
+void DrawText(const char* text, float x, float y, float scale, glm::vec3 color, FontInfo * textData)  
 {       
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
@@ -109,16 +111,11 @@ void DrawText(std::string text, float x, float y, float scale, glm::vec3 color, 
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray((textData->_VAO));
 
-    // iterate through all characters
-    std::string::const_iterator c;
-    
-    for (c = text.begin(); c != text.end(); c++) 
+    while (*text)
     {
-        const Character & ch = (textData->Characters)[*c];
-
+        const Character & ch = (textData->Characters)[*text];
         float xpos = x + ch.Bearing.x * scale;
         float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
-
         float w = ch.Size.x * scale;
         float h = ch.Size.y * scale;
 
@@ -136,17 +133,19 @@ void DrawText(std::string text, float x, float y, float scale, glm::vec3 color, 
 
         // render glyph texture over quad
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
-
-        // update content of VBO memory
         glBindBuffer(GL_ARRAY_BUFFER, (textData->_VBO));
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
-
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+
         // render quad
         glDrawArrays(GL_TRIANGLES, 0, 6);
         // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
         x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64 (divide amount of 1/64th pixels by 64 to get amount of pixels))
+    
+        text++;
     }
+
+
 
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);

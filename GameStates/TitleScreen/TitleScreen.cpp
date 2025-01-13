@@ -25,11 +25,13 @@ struct button
 
 void gotoGameplay() 
 { 
+    wait(0.25f);
     request_state_change(GameState::GAMEPLAY);
 }
 
 void gotoEditor() 
 { 
+    wait(0.25f);
     request_state_change(GameState::LEVEL_EDITOR);
 }
 
@@ -62,13 +64,11 @@ GAMESTATE_INIT(TitleScreen)
     gameplay.text = "GAME";
     gameplay.callback = gotoGameplay;
 
-
     editor.lowerLeft = glm::vec3(250, 900, 1);
     editor.dimensions = glm::vec3(220, 100, 1);
     editor.color = glm::vec3(1.0f);
     editor.text = "EDITOR";
     editor.callback = gotoEditor;
-
 }
 
 bool mouseHover(glm::vec2 mousePos, button & b) 

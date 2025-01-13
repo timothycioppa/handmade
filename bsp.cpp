@@ -402,22 +402,26 @@ insertion_point findInsertionPoint(wall_segment & segment, bsp_node * currentNod
     // segment lies in front of the current node's segment
     if (glm::dot(segment.start - parentSegment.start, parentSegment.normal) >= 0 && 
         glm::dot(segment.end - parentSegment.start, parentSegment.normal) >= 0)  
+    
     {
         if (currentNode->front != nullptr) 
         {
             return findInsertionPoint(segment, currentNode->front, tree);
-        } else
+        } 
+        else
         {
             return {currentNode, 0};
         } 
     }
+    
     // segment lies behind the current segment
     else
     {
         if (currentNode->back != nullptr) 
         {
             return findInsertionPoint(segment, currentNode->back, tree);
-        } else
+        }
+         else
         {
             return {currentNode, 1};
         } 

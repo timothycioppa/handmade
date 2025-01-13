@@ -60,4 +60,8 @@ bool aabb_intersect(const AABB & first, const AABB & second);
 bool distance_to_plane(const ray_t & ray, const plane_t & plane, float* distance);
 float distance_to_plane (const glm::vec3 & point, const plane_t & plane) ;
 
+float random(float min, float max);
+glm::vec3 random_unit_vector() ;
+glm::vec3 random(glm::vec3 min, glm::vec3 max) ;
+
 #endif

@@ -60,3 +60,28 @@ bool aabb_intersect(const AABB & first, const AABB & second)
     if (LZ(second) > RZ(first)) { return false; }
     return true;
 }
+
+
+float random(float min, float max) 
+{ 
+    float t = (float) rand() / float(RAND_MAX);
+    return min + t * (max - min);
+}
+
+glm::vec3 random_unit_vector() 
+{ 
+    float vx = random(-1.0f, 1.0f);
+    float vy = random(-1.0f, 1.0f);
+    float vz = random(-1.0f, 1.0f);
+    return glm::normalize(glm::vec3(vx, vy, vz));
+}
+
+
+glm::vec3 random(glm::vec3 min, glm::vec3 max) 
+{ 
+    return glm::vec3(
+        random(min.x, max.x),
+        random(min.y, max.y),
+        random(min.z, max.z)
+    );
+}

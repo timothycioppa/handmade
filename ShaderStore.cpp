@@ -93,6 +93,14 @@ void init_uniforms(line_ids *ids, compiled_shader & s)
     unsigned int pid = s.programID;    
 }
 
+void init_uniforms(default_particle_ids *ids, compiled_shader & s) 
+{
+    unsigned int pid = s.programID;   
+    ids->projection = glGetUniformLocation(pid, "projection"); 
+    ids->view = glGetUniformLocation(pid, "view"); 
+    ids->mainTex = glGetUniformLocation(pid, "mainTex");
+}
+
 void initialize_shader_store() 
 {
     unsigned int size = 0; 

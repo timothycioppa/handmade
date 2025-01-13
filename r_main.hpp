@@ -12,24 +12,22 @@
 #include "scene_object.hpp"
 #include "scene_parser.hpp"
 
-extern unsigned int quadVAO;
-extern unsigned int quadVBO;
-
+#define FONT_ENTRY(index, enum_code, path) enum_code = index,
 enum GameFont 
 { 
-    Ariel,
-    Anton
+    #include "font_entries.hpp"
 };
+#undef FONT_ENTRY
 
 void R_Init();
 void R_Cleanup() ;
-void R_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & localToWorld, bsp_tree & scene, RenderContext & context, int texID);
 void R_RenderFullScreenQuad();
 void R_DrawColoredRect(glm::vec3 ll, glm::vec3 d, glm::vec3 c) ;
 void R_DrawTexturedRect (glm::vec3 ll, glm::vec3 d, texture_info* texture);
-void R_RenderMeshStandardShadowed(bsp_tree & scene,  RenderContext & context);
-void R_DrawText(std::string text, float x, float y, float scale, glm::vec3 color, GameFont font);  
+void R_DrawText(const char* text, float x, float y, float scale, glm::vec3 color, GameFont font);  
 void R_DrawLines();
 void R_DrawLine(glm::vec2 start, glm::vec2 end, glm::vec3 color); 
+void R_DrawMeshInstanced(static_mesh & m, unsigned int count) ;
+void R_DrawMesh(static_mesh & m) ;
 
 #endif

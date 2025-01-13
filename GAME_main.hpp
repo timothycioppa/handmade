@@ -7,7 +7,7 @@
 #include "g_main.hpp"
 #include "r_main.hpp"
 #include "player.hpp"
-#include "GameStates/Gameplay.hpp"
+#include "GameStates/Gameplay/Gameplay.hpp"
 #include "game_data.hpp"
 
 extern glm::vec2 mousePos;

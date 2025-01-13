@@ -10,8 +10,6 @@
 #include "editor_controller.hpp"
 #include "ShaderStore.hpp"
 
-float lightStrength = 0.5f;
-
 FrameBufferInfo shadowDepthMapFB;
 FrameBufferInfo hdrColorBufferFB;
 LightData lightData;
@@ -20,18 +18,48 @@ TextureStore gTextureRepository;
 // used for rendering walls and ceilings (since everything is a quad)
 static_mesh quadMesh;
 static_mesh cubeMesh;
+static_mesh sphereMesh;
 
 bool useHDR = true;
 float exposure = 1.0f;
 
+struct lighting_uniforms
+{
+    bool initialized;
+    unsigned int posIDS[3];
+    unsigned int colorIDS[3];
+    unsigned int intensityIDS[3];
+};
+
+lighting_uniforms light_uniforms;
+
+glm::vec2 vertCrosshairStart = glm::vec2(0.0f, -0.05f);
+glm::vec2 vertCrosshairEnd = glm::vec2(0.0f, 0.05f);
+glm::vec2 horCrosshairStart = glm::vec2(-0.05f, 0.0f);
+glm::vec2 horCrosshairEnd = glm::vec2(0.05f, 0.0f);
+glm::vec3 crossColor = glm::vec3(1,0,0);
+
+
 void    GenerateHDRColorBuffer();
 void    GenerateShadowDepthBuffer();
 void    GenerateLightData();
+void    init_light_uniforms(bsp_tree & scene) ;
+void    draw_renderable(node_render_data & renderable, RenderContext & context, bsp_tree & tree);
+void    draw_renderables(const renderable_index & indices, bsp_tree & tree, RenderContext & context) ;
+void    render_adjacent_sectors(const wall_segment & segment, bsp_tree & tree, RenderContext & context) ;
+void    render_scene_recursive(bsp_node * node, bsp_tree & tree, RenderContext & context) ;
+void    debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data & cam);
+void    draw_crosshairs() ;
+void    render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree);
 
 void G_Init() 
 {
+    initialize_shader_store();
+    init_particles("Models/wall.obj");
+
     load_mesh("Models/wall.obj", quadMesh);
     load_mesh("Models/cube.obj", cubeMesh);
+    load_mesh("Models/sphere.obj", sphereMesh);
 
     GenerateHDRColorBuffer();
     GenerateShadowDepthBuffer();
@@ -44,7 +72,11 @@ void G_Init()
 
 void G_Cleanup() 
 { 
+    release_shader_store();
     release_mesh(quadMesh);
+    release_mesh(cubeMesh);
+    release_mesh(sphereMesh);
+
 
 	for (auto & [key, value] : gTextureRepository.TextureMap ) 
 	{ 
@@ -173,7 +205,7 @@ void ValidateTextures(bsp_tree & tree)
     for (int i = 0; i < tree.numRenderables; i++) {
        if (tree.renderables[i].material.mainTexture == nullptr)
        {
-            tree.renderables[i].material.mainTexture = gTextureRepository.GetTexture("Textures/MMCellNoise.png");
+            tree.renderables[i].material.mainTexture = gTextureRepository.GetTexture("Textures/wood.png");
        } 
     }
 }
@@ -212,7 +244,7 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace * tree.renderables[indices.renderableIndex0].transform.localToWorldMatrix();             
         glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
-        render_mesh(quadMesh);
+        R_DrawMesh(quadMesh);
     }
 
     if (indices.renderableIndex1 > -1)
@@ -220,7 +252,7 @@ void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
         glm::mat4 local2LightSpace = 
             tree.lights[0].lightSpace  * tree.renderables[indices.renderableIndex1].transform.localToWorldMatrix();                        
         glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
-        render_mesh(quadMesh);
+        R_DrawMesh(quadMesh);
     }
 }
 
@@ -241,6 +273,47 @@ void G_StartFrame()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
+void G_RenderScene(bsp_tree & scene, RenderContext & context) 
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
+    glClearColor(0,0,0, 1.0f);
+    glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    shader_data sData = bind_shader(ShaderCode::STANDARD_SHADOWED);
+    unsigned int programID = sData.programID;
+    standard_shadow_ids & uniformIDS = *((standard_shadow_ids *) sData.uniformIDS);
+
+    init_light_uniforms(scene);
+    
+    for (int i = 0; i < scene.lightCount; i++) 
+    {
+        light & l = scene.lights[i];
+        set_float3(light_uniforms.posIDS[i], l.Position);
+        set_float3(light_uniforms.colorIDS[i], l.Color);
+        set_float(light_uniforms.intensityIDS[i], l.intensity);
+    }
+
+    // common uniforms for all objects rendered
+    set_texture(uniformIDS.shadowMapID,  context.shadowMapID, 1);
+    set_mat4(uniformIDS.viewID, context.v);
+    set_mat4(uniformIDS.lightSpaceID, context.lightSpace);
+    set_float3(uniformIDS.cameraPositionID, context.cameraPosition);
+    set_float3(uniformIDS.cameraForwardID, context.cameraForward);
+    set_float3(uniformIDS.lightPosID, context.lightPosition);
+    set_float3(uniformIDS.lightColorID, context.lightColor);
+    set_float(uniformIDS.lightStrengthID, context.lightPower);
+    set_float(uniformIDS.appTimeID, context.totalTime);
+    set_float(uniformIDS.deltaTimeID,context.deltaTime);
+    set_float(uniformIDS.cosTimeID, context.cosTime);
+    set_float(uniformIDS.sinTimeID, context.sinTime);
+
+    glEnable(GL_CULL_FACE);
+    render_scene_recursive(scene.root, scene, context);
+    unbind_shader(); 
+    glDisable(GL_CULL_FACE);
+}
+
 void G_RenderToHDRColorBuffer(bsp_tree & scene) 
 { 
     static RenderContext context;
@@ -249,11 +322,9 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     context.cameraPosition = main_player.Position;
     context.cameraForward = main_player.Forward;
     context.lightSpace = lightData.lightSpaceMatrix;
-    
     context.lightPosition = { 0.0f, 0.0f, 0.0f};
     context.lightColor = {1.0f, 1.0f, 1.0f};
     context.lightPower = 1.0f;
-
     context.totalTime = gContext.applicationTime;
     context.deltaTime = gContext.deltaTime;
     context.sinTime = gContext.sinTime;
@@ -261,13 +332,7 @@ void G_RenderToHDRColorBuffer(bsp_tree & scene)
     context.v = main_player.camData.view;
     context.p = main_player.camData.projection;
 
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
-    glClearColor(0,0,0, 1.0f);
-    glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    R_RenderMeshStandardShadowed(scene, context);       
-
+    G_RenderScene(scene, context);
 }
 
 void G_RenderFinalFrame() 
@@ -289,35 +354,6 @@ void G_RenderFinalFrame()
 
     unbind_shader();
 }
-
-void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data & cam) 
-{
-    glm::mat4 vp = cam.projection * cam.view;
-    glm::vec4 ss =  vp * glm::vec4(_start, 1.0f);
-    glm::vec4 ee = vp * glm::vec4(_end, 1.0f);
-
-    ss.x = ss.x / ss.w;
-    ss.y = ss.y / ss.w;
-    ee.x = ee.x / ee.w;
-    ee.y = ee.y / ee.w;
-
-    R_DrawLine(glm::vec2(ss.x, ss.y ), glm::vec2(ee.x , ee.y), color); 
-}
-
-glm::vec2 vertCrosshairStart = glm::vec2(0.0f, -0.05f);
-glm::vec2 vertCrosshairEnd = glm::vec2(0.0f, 0.05f);
-glm::vec2 horCrosshairStart = glm::vec2(-0.05f, 0.0f);
-glm::vec2 horCrosshairEnd = glm::vec2(0.05f, 0.0f);
-glm::vec3 crossColor = glm::vec3(1,0,0);
-
-void draw_crosshairs() 
-{ 
-    float ar = gContext.aspectRatio;
-    R_DrawLine(horCrosshairStart, horCrosshairEnd, crossColor);
-    R_DrawLine(vertCrosshairStart * ar, vertCrosshairEnd * ar, crossColor);    
-}
-
-
 void G_PostProcessing() 
 { 
 #ifdef DONT_RUN
@@ -343,9 +379,50 @@ void G_PostProcessing()
     #endif
 }
 
+void G_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scene, RenderContext & context, int texID) { 
+   
+    shader_data shaderData = bind_shader(ShaderCode::STANDARD_SHADOWED);
+    standard_shadow_ids *uniformIDS = (standard_shadow_ids*) shaderData.uniformIDS;
+    init_light_uniforms(scene);
+    
+    for (int i = 0; i < scene.lightCount; i++) 
+    {
+        light & l = scene.lights[i];
+        set_float3(light_uniforms.posIDS[i], l.Position);
+        set_float3(light_uniforms.colorIDS[i], l.Color);
+        set_float(light_uniforms.intensityIDS[i], l.intensity);
+    }
+
+    glm::mat4 modelView = main_player.camData.view * model;
+    glm::mat4 modelViewProj = main_player.camData.projection * modelView;
+
+    set_texture(uniformIDS->shadowMapID,  context.shadowMapID, 1);
+    set_mat4(uniformIDS->viewID, context.v);
+    set_mat4(uniformIDS->lightSpaceID, context.lightSpace);
+    set_float3(uniformIDS->cameraPositionID, context.cameraPosition);
+    set_float3(uniformIDS->cameraForwardID, context.cameraForward);
+    set_float3(uniformIDS->lightPosID, context.lightPosition);
+    set_float3(uniformIDS->lightColorID, context.lightColor);
+    set_float(uniformIDS->lightStrengthID, context.lightPower);
+    set_float(uniformIDS->appTimeID, context.totalTime);
+    set_float(uniformIDS->deltaTimeID,context.deltaTime);
+    set_float(uniformIDS->cosTimeID, context.cosTime);
+    set_float(uniformIDS->sinTimeID, context.sinTime);
+    set_texture(uniformIDS->mainTexID, texID, 0);
+    set_float3(uniformIDS->diffuseID, {1,1,1});
+    set_float3(uniformIDS->specularID, {1,1,1});
+    set_float(uniformIDS->shininessID, 1.0f);
+    set_mat4(uniformIDS->modelID, model);
+    set_mat4(uniformIDS->modelViewID, modelView);
+    set_mat4(uniformIDS->modelViewProjID, modelViewProj);
+
+    R_DrawMesh(mesh);
+    unbind_shader(); 
+
+}
+
 void RenderGun(bsp_tree & scene) 
 { 
-
     static RenderContext context;
     context.shadowMapID = shadowDepthMapFB.texture;
     context.cameraPosition = main_player.Position;
@@ -376,11 +453,32 @@ void RenderGun(bsp_tree & scene)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
         glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
-        R_RenderMeshShadowed(cubeMesh, gunTransform, scene, context, gTextureRepository.GetTexture("Textures/wood.jpg")->textureID);
+        G_RenderMeshShadowed(cubeMesh, gunTransform, scene, context, gTextureRepository.GetTexture("Textures/wood.jpg")->textureID);
     } 
 }
 
-void G_RenderSceneShadowedFull(bsp_tree & scene) 
+void RenderProjectiles(bsp_tree & scene, gameplay_context & gameContext) 
+{    
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
+    glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
+
+    if (gameContext.explosion.alive) 
+    {
+        render_system(gameContext.explosion, main_player.camData);
+    } 
+
+    for (int i = 0; i < MAX_PROJECTILES; i++) 
+    {
+        projectile & p = gameContext.primaryWeapon.projectiles[i];
+
+        if (p.active) 
+        {
+            G_RenderProjectile(p.position, scene);
+        }
+    }
+}
+
+void G_RenderSceneShadowedFull(bsp_tree & scene, gameplay_context & gameContext) 
 {
     draw_crosshairs();
 
@@ -389,6 +487,7 @@ void G_RenderSceneShadowedFull(bsp_tree & scene)
     G_RenderToHDRColorBuffer(scene);
 
     RenderGun(scene);
+    RenderProjectiles(scene, gameContext);
 
     // at this point the full G buffer is accessible, though the color buffer hasn't been remapped
     // that happens in the hdr pass (G_RenderFinalFrame()) 
@@ -396,7 +495,7 @@ void G_RenderSceneShadowedFull(bsp_tree & scene)
     R_DrawLines();    
     G_RenderFinalFrame();
 
-    // post processing can happen here
+
     G_PostProcessing();
 }
 
@@ -438,10 +537,177 @@ void G_RenderLevelEditor(editor_render_context & renderContext)
     R_DrawText(buff, gContext.mousePosition.x, gContext.windowHeight - gContext.mousePosition.y, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), GameFont::Ariel);
 }
 
+void G_RenderProjectile(glm::vec3 position, bsp_tree & scene) 
+{ 
+    static RenderContext context;
+    context.shadowMapID = shadowDepthMapFB.texture;
+    context.cameraPosition = main_player.Position;
+    context.cameraForward = main_player.Forward;
+    context.lightSpace = lightData.lightSpaceMatrix;
+    
+    context.lightPosition = { 0.0f, 0.0f, 0.0f};
+    context.lightColor = {1.0f, 1.0f, 1.0f};
+    context.lightPower = 1.0f;
+
+    context.totalTime = gContext.applicationTime;
+    context.deltaTime = gContext.deltaTime;
+    context.sinTime = gContext.sinTime;
+    context.cosTime = gContext.cosTime;
+    context.v = main_player.camData.view;
+    context.p = main_player.camData.projection;
+
+    glm::mat4 projectileTransform = glm::translate(glm::mat4(1.0f), position);
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
+        glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
+        G_RenderMeshShadowed(cubeMesh, projectileTransform, scene, context, gTextureRepository.GetTexture("Textures/carpet.bmp")->textureID);
+    } 
+}
+
 void G_RenderTitleScreen() 
 { 
     glViewport(0, 0, gContext.windowWidth, gContext.windowHeight);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClearColor(0.0f, 0.2f, .2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+}
+
+void init_light_uniforms(bsp_tree & scene) 
+{ 
+    if (light_uniforms.initialized) 
+    { 
+        return;
+    }
+
+    light_uniforms.initialized = true;
+    
+    char lightBuff[64];
+    unsigned int programID = program_id(ShaderCode::STANDARD_SHADOWED);
+    
+    for (int i = 0; i < scene.lightCount; i++) 
+    {    
+        sprintf(lightBuff, "lights[%d].position", i);
+        light_uniforms.posIDS[i] =  glGetUniformLocation(programID, lightBuff);
+        
+        sprintf(lightBuff, "lights[%d].color", i);
+        light_uniforms.colorIDS[i] =  glGetUniformLocation(programID, lightBuff);
+        
+        sprintf(lightBuff, "lights[%d].intensity", i);
+        light_uniforms.intensityIDS[i] =  glGetUniformLocation(programID, lightBuff);
+        
+    }
+}
+
+void draw_renderable(node_render_data & renderable, RenderContext & context, bsp_tree & tree)
+{    
+    if (renderable.rendered)
+    {
+        return;
+    }
+
+    standard_shadow_ids & uniformIDS = *get_uniform_ids(ShaderCode::STANDARD_SHADOWED, standard_shadow_ids);
+
+    renderable.rendered = true;
+    bool highlight = IS_HIGHLIGHTED(renderable);
+    float scale = highlight ? 100.0f : 1.0f;
+
+    glm::mat4 model = renderable.transform.localToWorldMatrix();
+    glm::mat4 modelView = context.v * model;
+    glm::mat4 modelViewProj = context.p * modelView;
+
+    // material uniforms
+    set_texture(uniformIDS.mainTexID, renderable.material.mainTexture->textureID, 0);
+    set_float3(uniformIDS.diffuseID,scale *  renderable.material.diffuse);
+    set_float3(uniformIDS.specularID, scale * renderable.material.specular);
+    set_float(uniformIDS.shininessID, scale * renderable.material.shininess);
+
+    // matrix uniforms
+    set_mat4(uniformIDS.modelID, model);
+    set_mat4(uniformIDS.modelViewID, modelView);
+    set_mat4(uniformIDS.modelViewProjID, modelViewProj);
+
+    R_DrawMesh(quadMesh);  
+}
+
+void draw_renderables(const renderable_index & indices, bsp_tree & tree, RenderContext & context) 
+{ 
+    if (indices.renderableIndex0 > -1) 
+    {
+        node_render_data & renderable = tree.renderables[indices.renderableIndex0];         
+        draw_renderable(renderable, context, tree);
+    }
+
+    if (indices.renderableIndex1 > -1) 
+    {  
+        node_render_data & renderable = tree.renderables[indices.renderableIndex1];   
+        draw_renderable(renderable, context, tree);
+    }    
+}
+
+void render_adjacent_sectors(const wall_segment & segment, bsp_tree & tree, RenderContext & context) 
+{         
+    int frontSector = segment.frontSectorID;
+
+    if (segment.frontSectorID > -1)
+    {
+        sector & s = tree.sectors[frontSector];
+        renderable_index & indices = s.renderIndices;
+        draw_renderables(indices, tree, context);
+    }
+
+    int backSector = segment.backSectorID;
+
+    if (segment.backSectorID > -1)
+    {
+        sector & s = tree.sectors[backSector];
+        renderable_index & indices = s.renderIndices;
+        draw_renderables(indices, tree, context);
+    }
+
+}
+
+void render_scene_recursive(bsp_node * node, bsp_tree & tree, RenderContext & context) 
+{
+    if (node->front != nullptr) 
+    {
+        render_scene_recursive(node->front, tree, context);
+    } 
+    else
+    {
+        render_adjacent_sectors(tree.segments[node->segmentIndex], tree, context);
+    }
+
+    if (node->back != nullptr) 
+    {
+        render_scene_recursive(node->back, tree, context);
+    }
+    else
+    {
+        render_adjacent_sectors(tree.segments[node->segmentIndex], tree, context);
+    }
+
+    renderable_index & indices = tree.segments[node->segmentIndex].renderIndices;
+    draw_renderables(indices, tree, context);    
+}
+
+void debug_line (glm::vec3 _start, glm::vec3 _end, glm::vec3 color, camera_data & cam) 
+{
+    glm::mat4 vp = cam.projection * cam.view;
+    glm::vec4 ss =  vp * glm::vec4(_start, 1.0f);
+    glm::vec4 ee = vp * glm::vec4(_end, 1.0f);
+
+    ss.x = ss.x / ss.w;
+    ss.y = ss.y / ss.w;
+    ee.x = ee.x / ee.w;
+    ee.y = ee.y / ee.w;
+
+    R_DrawLine(glm::vec2(ss.x, ss.y ), glm::vec2(ee.x , ee.y), color); 
+}
+
+
+void draw_crosshairs() 
+{ 
+    float ar = gContext.aspectRatio;
+    R_DrawLine(horCrosshairStart, horCrosshairEnd, crossColor);
+    R_DrawLine(vertCrosshairStart * ar, vertCrosshairEnd * ar, crossColor);    
 }

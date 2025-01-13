@@ -3,21 +3,35 @@
 #include <stdlib.h>
 #include "main.hpp"
 
-
-
 #define TARGET_FPS 90.0f
 #define LIMIT_FRAMERATE 0
 #define WAIT_UNTIL(time) while (glfwGetTime() < time) {}
 
 int main(int argc, char** argv)
 {
-	GLFWwindow* window = GAME_CreateWindow();
+	GLFWwindow* window;
+
+	glfwInit();
+	glfwWindowHint(GLFW_SAMPLES, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Rjune", NULL, NULL);
 
 	if (window == NULL) 
 	{ 
 		glfwTerminate();
 		return -1;
 	}
+
+	glfwSetKeyCallback(window, key_callback);
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+	glfwSetScrollCallback(window, scroll_callback);
+	glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwMakeContextCurrent(window);
+	gladLoadGL();
+
 
 	#ifdef EDITOR_DEBUG
 		Editor_Init(window);
@@ -85,32 +99,6 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-GLFWwindow * GAME_CreateWindow() 
-{ 
-	GLFWwindow* window;
-
-	glfwInit();
-	glfwWindowHint(GLFW_SAMPLES, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Rjune", NULL, NULL);
-
-	if (window == NULL)
-	{
-		return NULL;
-	}
-
-	glfwSetKeyCallback(window, key_callback);
-	glfwSetCursorPosCallback(window, cursor_position_callback);
-	glfwSetScrollCallback(window, scroll_callback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	glfwMakeContextCurrent(window);
-	gladLoadGL();
-
-	return window;
-}
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {

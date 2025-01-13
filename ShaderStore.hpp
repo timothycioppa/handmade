@@ -10,7 +10,7 @@ enum ShaderCode
 #undef SHADER_ENTRY
 
 // NOTE: UPDATE THIS WHENEVER YOU MODIFY THE SHADER ENTRY FILE!!!!!
-#define NUM_SHADERS 9
+#define NUM_SHADERS 10
 
 struct shader_entry 
 { 
@@ -84,6 +84,13 @@ struct text_render_ids
     unsigned int texColor;
     unsigned int text;
     unsigned int projection;
+};
+
+struct default_particle_ids
+{
+    unsigned int projection;
+    unsigned int view;
+    unsigned int mainTex;
 };
 
 struct line_ids 

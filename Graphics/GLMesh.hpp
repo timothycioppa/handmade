@@ -12,7 +12,6 @@ struct static_mesh
 };
 
 void load_mesh(const char* fileName, static_mesh & m) ;
-void render_mesh(static_mesh & m);
 void release_mesh (static_mesh & m) ;
 
 #endif

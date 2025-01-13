@@ -10,16 +10,6 @@
 #include "game_data.hpp"
 #include "edtitor_main.hpp"
 
-#define DEBUGQUAD 0
-
-const glm::vec3 WHITE = glm::vec3(1,1,1);
-const glm::vec3 RED = glm::vec3(1,0,0);
-const glm::vec3 GREEN = glm::vec3(0,1,0);
-const glm::vec3 BLUE = glm::vec3(0,0,1);
-const glm::vec3 BLACK = glm::vec3(0,0,0);
-
-GLFWwindow * GAME_CreateWindow() ;
-
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
