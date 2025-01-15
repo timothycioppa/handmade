@@ -1,61 +1,36 @@
 sectors
-count 6
-floor 0 ceiling 20 center 11.5625 -8.64583  dimension 40.625 38.125  wall 0 1 2 3
-floor 0 ceiling 20 center -18.9583 -8.64583  dimension 20.4167 38.125  wall 4 5 6 1
-floor 0 ceiling 20 center -38.8542 -8.64583  dimension 19.375 38.125  wall 7 8 9 5
-floor 0 ceiling 20 center -38.8542 22.9167  dimension 19.375 25  wall 9 10 11 12
-floor 0 ceiling 20 center -38.8542 45  dimension 19.375 19.1667  wall 11 13 14 15
-floor 0 ceiling 20 center -38.8542 65.2083  dimension 19.375 21.25  wall 14 16 17 18
+count 4
+floor 0 ceiling 20 center -25 -10  dimension 50 40  wall 0 1 2 3
+floor 0 ceiling 20 center -25 35  dimension 50 50  wall 2 4 5 6
+floor 0 ceiling 20 center -70 35  dimension 40 50  wall 7 8 9 4
+floor 0 ceiling 20 center 15 -10  dimension 30 40  wall 10 3 11 12
 segments
-count 19
-s 31.875 -27.7083 e -8.74999 -27.7083 f 0 b -1
-s -8.74999 -27.7083 e -8.74999 10.4167 f 0 b 1
-s -8.74999 10.4167 e 31.875 10.4167 f 0 b -1
-s 31.875 10.4167 e 31.875 -27.7083 f 0 b -1
-s -8.74999 -27.7083 e -29.1667 -27.7083 f 1 b -1
-s -29.1667 -27.7083 e -29.1667 10.4167 f 1 b 2
-s -29.1667 10.4167 e -8.74999 10.4167 f 1 b -1
-s -29.1667 -27.7083 e -48.5417 -27.7083 f 2 b -1
-s -48.5417 -27.7083 e -48.5417 10.4167 f 2 b -1
-s -48.5417 10.4167 e -29.1667 10.4167 f 2 b 3
-s -48.5417 10.4167 e -48.5417 35.4167 f 3 b -1
-s -48.5417 35.4167 e -29.1667 35.4167 f 3 b 4
-s -29.1667 35.4167 e -29.1667 10.4167 f 3 b -1
-s -48.5417 35.4167 e -48.5417 54.5833 f 4 b -1
-s -48.5417 54.5833 e -29.1667 54.5833 f 4 b 5
-s -29.1667 54.5833 e -29.1667 35.4167 f 4 b -1
-s -48.5417 54.5833 e -48.5417 75.8333 f 5 b -1
-s -48.5417 75.8333 e -29.1667 75.8333 f 5 b -1
-s -29.1667 75.8333 e -29.1667 54.5833 f 5 b -1
-lights
-count 3
-light 
- col 1 0 0 
-  int .1 
- pos -20 0 0 
- yaw 0 
- pitch 0 
- near 0.01 
- far 100 
- fwidth 20 
-  fheight 20
-light 
- col 1 0 0 
-  int .1 
- pos -20 0 0 
- yaw 0 
- pitch 0 
- near 0.01 
- far 100 
- fwidth 20 
-  fheight 20
-light 
- col 1 0 0 
-  int .1 
- pos -20 0 0 
- yaw 0 
- pitch 0 
- near 0.01 
- far 100 
- fwidth 20 
-  fheight 20
+count 13
+s 0 -30 e -50 -30 f 0 b -1
+s -50 -30 e -50 10 f 0 b -1
+s -50 10 e 0 10 f 0 b 1
+s 0 10 e 0 -30 f 0 b 3
+s -50 10 e -50 60 f 1 b 2
+s -50 60 e 0 60 f 1 b -1
+s 0 60 e 0 10 f 1 b -1
+s -50 10 e -90 10 f 2 b -1
+s -90 10 e -90 60 f 2 b -1
+s -90 60 e -50 60 f 2 b -1
+s 30 -30 e 0 -30 f 3 b -1
+s 0 10 e 30 10 f 3 b -1
+s 30 10 e 30 -30 f 3 b -1
+nodes
+count 13
+seg 0 f 1 b -1
+seg 1 f 2 b 7
+seg 2 f 3 b 4
+seg 3 f -1 b 10
+seg 4 f 5 b -1
+seg 5 f 6 b -1
+seg 6 f -1 b -1
+seg 7 f 8 b -1
+seg 8 f 9 b -1
+seg 9 f -1 b -1
+seg 10 f 11 b -1
+seg 11 f 12 b -1
+seg 12 f -1 b -1

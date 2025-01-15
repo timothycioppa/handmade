@@ -68,5 +68,5 @@ void SyncTransform(Transform & transform, reactphysics3d::RigidBody * rb) {
 	    
 		reactphysics3d::Vector3 newPosition = rb->getTransform().getPosition();
 		transform.position = { newPosition.x, newPosition.y, newPosition.z };
-		transform.MarkDirty();
+		update_model_matrix(transform);
 }

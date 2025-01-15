@@ -40,7 +40,6 @@ void init_uniforms(standard_shadow_ids *ids, compiled_shader & s)
     uniformIDS.deltaTimeID = glGetUniformLocation(pID, "time.deltaTime");
     uniformIDS.cosTimeID = glGetUniformLocation(pID, "time.cosTime");
     uniformIDS.sinTimeID = glGetUniformLocation(pID, "time.sinTime");
-
 }
 
 void init_uniforms(editor_grid_ids *ids, compiled_shader & s) 

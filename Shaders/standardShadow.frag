@@ -2,7 +2,7 @@
 layout (location = 0) out vec4 FragColor;
 layout (location = 1) out vec3 FragNormal;
 layout (location = 2) out vec3 FragPosition;
-
+#define MAX_LIGHTS 4
 in VS_OUT 
 {
     vec3 FragPos;
@@ -30,6 +30,7 @@ struct Material
 
 struct light_data 
 { 
+    int active;
     vec3 color;
     vec3 position;
     float intensity;
@@ -43,7 +44,8 @@ uniform vec3 unity_CameraForward;
 uniform vec3 lightColor;
 uniform float lightPower;  
 uniform Material material;
-uniform light_data lights[3];
+
+uniform light_data lights[MAX_LIGHTS];
 
 float ShadowCalculation(vec4 fragPosLightSpace)
 {
@@ -80,10 +82,10 @@ float calculateFog(vec3 pos)
     float _dist = abs(dot(pos - unity_CameraPosition, unity_CameraForward)) / length(unity_CameraForward); 
     float maxDist = 75.0f;
     float fog = exp(-(exposure / 100.0f) *  _dist);
-    return fog;
+    return max(0.15f, fog);
 }
 
-#define NUM_LIGHTS 3
+
 
 
 void main()
@@ -102,18 +104,21 @@ void main()
 
     int i = 0;
 
-    for (int i = 0; i < NUM_LIGHTS; i++) 
+    for (int i = 0; i < MAX_LIGHTS; i++) 
     { 
-        vec3 dLight = lights[i].position - fs_in.FragPos;
-        float invSqDist = 1.0f / (dLight.x * dLight.x + dLight.y * dLight.y + dLight.z * dLight.z);
-        float dist = distance(lights[i].position, fs_in.FragPos);
-        vec3 lightDir = normalize(dLight);                
-        float diffuseValue = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diffuseValue * material.diffuse;          
-        vec3 reflectDir = reflect(-lightDir, norm);  
-        float specValue = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-        vec3 specular = specValue * lights[i].color;      
-        calculatedColor += lights[i].intensity * (diffuse + specular) * invSqDist;     
+        if (lights[i].active == 1) 
+        { 
+            vec3 dLight = lights[i].position - fs_in.FragPos;
+            float invSqDist = 1.0f / (dLight.x * dLight.x + dLight.y * dLight.y + dLight.z * dLight.z);
+            float dist = distance(lights[i].position, fs_in.FragPos);
+            vec3 lightDir = normalize(dLight);                
+            float diffuseValue = max(dot(norm, lightDir), 0.0);
+            vec3 diffuse = diffuseValue * material.diffuse;          
+            vec3 reflectDir = reflect(-lightDir, norm);  
+            float specValue = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+            vec3 specular = specValue * lights[i].color;      
+            calculatedColor += lights[i].intensity * (diffuse + specular) * invSqDist;
+        }
     }
 
     float fog = calculateFog(fs_in.FragPos);

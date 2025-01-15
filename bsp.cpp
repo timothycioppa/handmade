@@ -206,17 +206,6 @@ void initialize_room_renderables(unsigned int currentRenderable, bsp_tree & tree
     }
 }
 
-void initialize_scene_lights(bsp_tree & tree)
-{
- for (int i = 0; i < tree.lightCount; i++) 
-    {
-        light & l = tree.lights[i];
-        l.WorldUp = {0.0f, 1.0f, 0.0f};
-        update_light_direction(l);
-        update_projection_matrix(l);
-    }
-}
-
 void build_bsp_tree(bsp_tree & tree)
 {  
     // generate all nodes for wall segments, returning the amount of renderables required
@@ -230,8 +219,6 @@ void build_bsp_tree(bsp_tree & tree)
     unsigned int currentRenderable = initialize_wall_renderables(tree);
 
     initialize_room_renderables(currentRenderable, tree);
-
-    initialize_scene_lights(tree);   
 }
 
 void bsp_tree_free(bsp_tree & tree) 
@@ -239,7 +226,6 @@ void bsp_tree_free(bsp_tree & tree)
     free(tree.renderables);
     free(tree.segments);
     free(tree.sectors);
-    free(tree.lights);
 }
 
 void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_tree & tree) 
@@ -262,13 +248,11 @@ void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_
 
     wall.transform.localToWorld = glm::scale(glm::mat4(1.0f),{wallWidth, wallHeight, 1.0f});
     wall.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * wall.transform.localToWorld;
-    wall.transform.dirty = false;
 
     wall.material.diffuse = {1,1,1};
     wall.material.specular = {1,1,1};
     wall.material.shininess = 1.0f;
     wall.material.mainTexture = nullptr;
-
 }
 
 void initialize_segmented_wall(
@@ -312,7 +296,6 @@ void initialize_segmented_wall(
 
     topWall.transform.localToWorld = glm::scale(glm::mat4(1.0f),{wallWidth, topHeight, 1.0f});
     topWall.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * topWall.transform.localToWorld;
-    topWall.transform.dirty = false;
 
 
     normal = segment.normal;
@@ -338,7 +321,6 @@ void initialize_segmented_wall(
 
     bottomWall.transform.localToWorld = glm::scale(glm::mat4(1.0f),{wallWidth, bottomHeight, 1.0f});
     bottomWall.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * bottomWall.transform.localToWorld;
-    bottomWall.transform.dirty = false;
 }
 
 void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tree) 
@@ -347,7 +329,6 @@ void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tr
     floor.transform.scale = {s.width, s.height, 1.0f};
     floor.transform.axis = {1,0,0};
     floor.transform.rotation = glm::radians(-180.0f);
-    floor.transform.MarkDirty();
 
     floor.material.diffuse = {1,1,1};
     floor.material.specular = {1,1,1};
@@ -360,7 +341,6 @@ void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tr
 
     floor.transform.localToWorld = glm::scale(glm::mat4(1.0f),{s.width, s.height, 1.0f});
     floor.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * floor.transform.localToWorld;
-    floor.transform.dirty = false;
 
 }
 
@@ -370,7 +350,6 @@ void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree 
     ceiling.transform.scale = {s.width,s.height, 1};
     ceiling.transform.axis = {1,0,0};
     ceiling.transform.rotation = glm::radians(0.0f);
-    ceiling.transform.MarkDirty();
 
     ceiling.material.diffuse = {1,1,1};
     ceiling.material.specular = {1,1,1};
@@ -383,7 +362,6 @@ void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree 
 
     ceiling.transform.localToWorld = glm::scale(glm::mat4(1.0f),{s.width, s.height, 1.0f});
     ceiling.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * ceiling.transform.localToWorld;
-    ceiling.transform.dirty = false;    
 }
 
 unsigned int required_renderables(wall_segment & segment) 

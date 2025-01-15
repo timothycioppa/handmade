@@ -1,5 +1,4 @@
 #include "r_main.hpp"
-#include "scene_object.hpp"
 #include "bsp.hpp"
 #include <map>
 

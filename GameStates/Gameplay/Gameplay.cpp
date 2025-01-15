@@ -53,7 +53,6 @@ GAMESTATE_UPDATE(Gameplay)
     if (bsp_raycast(main_player.Position, main_player.Forward, hit, scene)) 
     {         
         set_hit_highlighted();
-        debug_line(glm::vec3(0,0,0), hit.position, glm::vec3(1,0,0), main_player.camData);
     }
 
     // handle jumping
@@ -347,31 +346,6 @@ GAMESTATE_EDITOR(Gameplay)
         ImGui::Text("Movedir: %g %g %g", m.x, m.y, m.z );
 
 
-    ImGui::End();
-
-    ImGui::Begin("lights");    
-    for (int i = 0; i < 3; i++) {
-        
-        ImGui::PushID(i);
-        sprintf(buff, "light[%d]", i);
-        
-        if (ImGui::CollapsingHeader(buff)) 
-        { 
-            glm::vec3 & lightPos = scene.lights[i].Position;
-            glm::vec3 & lightColor = scene.lights[i].Color;
-            float & intensity = scene.lights[i].intensity;
-            
-            if (ImGui::DragFloat3("position", glm::value_ptr(lightPos), 0.01f, -20.0f, 20.0f)) 
-            { 
-                update_light_direction(scene.lights[0]);
-                update_projection_matrix(scene.lights[0]);
-            }  
-
-            ImGui::DragFloat3("color", glm::value_ptr(lightColor), 0.01f, 0.0f, 10.0f);
-            ImGui::DragFloat("intensity", &intensity, 0.01f, 0.0f, 100.0f);
-        }    
-        ImGui::PopID();
-    }
     ImGui::End();
 }
 

@@ -5,6 +5,7 @@
 
 struct light 
 {    
+    int active; // 0 or 1
     glm::vec3 Color;
     float intensity;
     glm::vec3 Position;

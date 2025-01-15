@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Rjune", NULL, NULL);
-
+	
 	if (window == NULL) 
 	{ 
 		glfwTerminate();
@@ -45,9 +45,9 @@ int main(int argc, char** argv)
 		float targetFrameTime = 1.0f / TARGET_FPS;
 	#endif
 
-
 	while (gContext.gameRunning)
 	{
+		glfwPollEvents();
 
 		#ifdef EDITOR_DEBUG
 				Editor_BeginFrame();
@@ -76,9 +76,7 @@ int main(int argc, char** argv)
 				}
 		#endif
 
-
 		glfwSwapBuffers(window);
-		glfwPollEvents();
 
 		if (glfwWindowShouldClose(window) != 0) 
 		{ 

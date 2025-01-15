@@ -3,7 +3,6 @@
 #include "Graphics/GLShader.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "game_data.hpp"
-#include "scene_object.hpp"
 #include "TextureStore.hpp"
 #include "scene_parser.hpp"
 #include "bsp.hpp"
@@ -12,6 +11,10 @@
 
 struct LightData 
 {
+	glm::vec3 position;
+	glm::vec3 color;
+	float intensity;	
+
 	glm::mat4 projection;
 	glm::mat4 view;
 	glm::mat4 lightSpaceMatrix;
@@ -28,16 +31,13 @@ struct FrameBufferInfo
 	unsigned int positionTexture;
 };
 
-
-
-extern LightData lightData;
-extern TextureStore gTextureRepository;
+extern LightData shadowLight;
 
 void G_Init();
 void G_RenderFinalFrame();
 void G_StartFrame();
 void G_RenderShadowDepth(bsp_tree&);
-void G_RenderToHDRColorBuffer(bsp_tree&);
+void G_RenderScene(bsp_tree&);
 void G_RenderSceneShadowedFull(bsp_tree&, gameplay_context&);
 void G_RenderProjectile(glm::vec3 position, bsp_tree & scene);
 void G_RenderTitleScreen();

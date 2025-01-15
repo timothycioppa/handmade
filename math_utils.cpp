@@ -1,4 +1,7 @@
 #include "math_utils.hpp"
+#include <stdio.h>
+#include <stdlib.h>
+
 #define EPS 1e-4f
 
 float sqrMag(const glm::vec2 & v) 
@@ -10,27 +13,26 @@ float sqrMag(const glm::vec3 & v)
 { 
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
-#include <stdio.h>
 
 bool aabb_contains(const glm::vec3 & pos, const AABB & bb)
 {
-    float xDist = glm::abs(pos.x - bb.center.x);
-    float yDist = glm::abs(pos.y - bb.center.y);
-    float zDist = glm::abs(pos.z - bb.center.z);
+    float xDist = abs(pos.x - bb.center.x);
+    float yDist = abs(pos.y - bb.center.y);
+    float zDist = abs(pos.z - bb.center.z);
     return (xDist <= bb.extents.x) && (yDist <= bb.extents.y) && (zDist <= bb.extents.z);
 }
 
 bool aabb_walls_contains(const glm::vec3 & pos, const AABB & bb)
 {
-    float xDist = glm::abs(pos.x - bb.center.x);
-    float zDist = glm::abs(pos.z - bb.center.z);
+    float xDist = abs(pos.x - bb.center.x);
+    float zDist = abs(pos.z - bb.center.z);
     return (xDist <= bb.extents.x) &&  (zDist <= bb.extents.z);
 }
 
 bool distance_to_plane(const ray_t & ray, const plane_t & plane, float* distance)
 {
     float denom = glm::dot(plane.normal, ray.direction);
-    if (glm::abs(denom) > EPS) 
+    if (abs(denom) > EPS) 
     { 
         *distance = glm::dot(plane.normal, plane.origin - ray.origin) / denom;
         return true;
@@ -60,7 +62,6 @@ bool aabb_intersect(const AABB & first, const AABB & second)
     if (LZ(second) > RZ(first)) { return false; }
     return true;
 }
-
 
 float random(float min, float max) 
 { 

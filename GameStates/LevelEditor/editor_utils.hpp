@@ -5,6 +5,7 @@
 #include "../../platform_common.hpp"
 #include "../../g_main.hpp"
 #include "../../editor_controller.hpp"
+#include "../../bsp.hpp"
 
 #define PV2(v) printf("(%g %g)\n", v.x, v.y)
 #define PV3(v) printf("(%g %g %g)\n", v.x, v.y, v.z)
@@ -69,12 +70,24 @@ struct segment_e
     int backSectorID;
 };
 
+struct bsp_node_e
+{
+    int segment_id;
+    int frontID;
+    int backID;
+};
+
+
 struct editor_scene_data 
 {
     int numSectors;
     int numSegments;
     sector_e sectors[MAX_EDITOR_SECTORS];
     segment_e segments[MAX_EDITOR_SEGMENTS];
+
+    // bsp tree structure. Traverse down through sectors (in front/behind) until we reach a room (or null if outside bounds of room)
+    unsigned int numNodes;
+    bsp_node_e nodes[MAX_TREE_NODES];       
 };
 
 typedef void (*PlacementModeCallback) (placement_data*);
@@ -94,5 +107,6 @@ void render_sector(sector_e & box, editor_scene_data & scene) ;
 placement_mode getCurrentPlacementMode(hover_type type);
 glm::vec3 getWorldCoordinates(glm::vec2 & windowCoordinates, editor_render_context & renderContext) ;
 bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex, hover_data & hover);
+void build_bsp_tree(editor_scene_data & scene);
 
 #endif

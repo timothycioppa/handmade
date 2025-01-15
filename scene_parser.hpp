@@ -6,21 +6,9 @@
 #include <fstream>
 #include <string>
 #include <iostream>
-#include "scene_object.hpp"
 #include "light.hpp"
 #include "bsp.hpp"
 
-struct scene_data 
-{ 
-    room_floor floor; 
-    room_ceiling ceiling;
-    std::vector<room_wall> room_walls;
-    std::vector<scene_object> sceneObjects;
-    std::vector<light> lights;   
-  
-};
-
 void load_scene(const char* filename, bsp_tree & tree) ;
-//void load_scene(const char* filename, scene_data & scene);
 
 #endif

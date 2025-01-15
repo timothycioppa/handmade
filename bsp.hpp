@@ -113,10 +113,6 @@ struct bsp_tree
     unsigned int numRenderables;
     node_render_data *renderables;
 
-    // all scene lights. somewhat innapropriate but fine for now
-    unsigned int lightCount;
-    light* lights;
-
     // bsp tree structure. Traverse down through sectors (in front/behind) until we reach a room (or null if outside bounds of room)
     unsigned int numNodes;
     bsp_node nodes[MAX_TREE_NODES];       

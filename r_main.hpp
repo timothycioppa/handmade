@@ -9,7 +9,6 @@
 #include "Graphics/GLRenderContext.hpp"
 #include "Graphics/GLMesh.hpp"
 #include "Graphics/GLTextRenderer.hpp"
-#include "scene_object.hpp"
 #include "scene_parser.hpp"
 
 #define FONT_ENTRY(index, enum_code, path) enum_code = index,

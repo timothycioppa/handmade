@@ -4,7 +4,7 @@
 #include "../../platform_common.hpp"
 #include "../../particle_system.hpp"
 
-#define MAX_PROJECTILES 15
+#define MAX_PROJECTILES 4
 
 struct projectile 
 { 

@@ -26,8 +26,7 @@ struct FontInfo
     glm::mat4 projection;
 };
 
- bool InitializeFont(std::string font_name, int width, int height,  FontInfo * textData) ;
-
-void DrawText(const char* text, float x, float y, float scale, glm::vec3 color, FontInfo * textData)  ;
+bool InitializeFont(std::string font_name, int width, int height,  FontInfo * textData);
+void DrawText(const char* text, float x, float y, float scale, glm::vec3 color, FontInfo * textData);
 
 #endif

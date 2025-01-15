@@ -1,6 +1,79 @@
 #include "editor_utils.hpp"
 #include <fstream>
 #include <iostream>
+#include <stdlib.h>
+
+#define INSERT_FRONT 0
+#define INSERT_BACK 1
+
+
+struct insertion_point_e 
+{ 
+    unsigned int side;
+    int parentNodeID;
+};
+
+insertion_point_e getInsertionPoint(int parentNodeID, segment_e & thisSegment, editor_scene_data & scene) 
+{ 
+    bsp_node_e & parentNode = scene.nodes[parentNodeID];
+    segment_e parentSegment = scene.segments[parentNode.segment_id];
+    glm::vec3 normal = glm::cross(glm::normalize(parentSegment.start - parentSegment.end), {0,1,0}); 
+    float test0 = glm::dot(normal, thisSegment.start - parentSegment.start);
+    float test1 = glm::dot(normal, thisSegment.end - parentSegment.start);
+
+    // segment is in front of parent segment
+    if (test0 >= 0 && test1 >= 0) 
+    {
+        if (parentNode.frontID > -1)
+        {
+            return getInsertionPoint(parentNode.frontID, thisSegment, scene);
+        } else 
+        {
+            return { INSERT_FRONT, parentNodeID };
+        }
+    }
+    else
+    {
+        if (parentNode.backID > -1)
+        {
+            return getInsertionPoint(parentNode.backID, thisSegment, scene);
+        } 
+        else 
+        {
+            return { INSERT_BACK, parentNodeID };
+        }
+    }
+}
+
+void build_bsp_tree(editor_scene_data & scene) 
+{
+    scene.nodes[0].segment_id = 0;
+    scene.nodes[0].backID = -1;
+    scene.nodes[0].frontID = -1;
+
+    for (int i = 1; i < scene.numSegments; i++) 
+    {
+        segment_e & testSegment = scene.segments[i];
+        bsp_node_e & node = scene.nodes[i];
+        node.segment_id = i;
+        node.backID = node.frontID = -1;
+
+        insertion_point_e pivot = getInsertionPoint(0, testSegment, scene);
+        bsp_node_e & insertionParent = scene.nodes[pivot.parentNodeID];
+
+        if (pivot.side == INSERT_FRONT) 
+        {
+            insertionParent.frontID = i;
+        }
+
+        if (pivot.side == INSERT_BACK) 
+        {
+            insertionParent.backID = i;
+        }
+    }
+
+    scene.numNodes = scene.numSegments;
+}
 
 void exportScene(editor_scene_data & scene, const char* filename) 
 { 
@@ -36,11 +109,15 @@ void exportScene(editor_scene_data & scene, const char* filename)
             << "e " << s.end.x << " " << s.end.z << " "
             << "f " << s.frontSectorID << " " << "b " << s.backSectorID << std::endl;    
     }
-    stream << "lights"<< std::endl;
-    stream << "count 3" << std::endl;
-    stream << "light \n col 1 0 0 \n  int .1 \n pos -20 0 0 \n yaw 0 \n pitch 0 \n near 0.01 \n far 100 \n fwidth 20 \n  fheight 20" <<std::endl;
-    stream << "light \n col 1 0 0 \n  int .1 \n pos -20 0 0 \n yaw 0 \n pitch 0 \n near 0.01 \n far 100 \n fwidth 20 \n  fheight 20" <<std::endl;
-    stream << "light \n col 1 0 0 \n  int .1 \n pos -20 0 0 \n yaw 0 \n pitch 0 \n near 0.01 \n far 100 \n fwidth 20 \n  fheight 20" <<std::endl;
+    
+    stream << "nodes" << std::endl;
+    stream << "count " << scene.numNodes << std::endl;
+
+    for (int i = 0; i < scene.numNodes; i++) 
+    {
+        bsp_node_e node = scene.nodes[i];
+        stream << "seg " << node.segment_id << " f " << node.frontID << " b " << node.backID << std::endl; 
+    }
 
     stream.close();
 }
@@ -61,7 +138,7 @@ void renderDebugBox(sector_e &box)
     debug_line(BR, TR,  box.rightColor, gEditorPlayer.camData);
 }
 
-void render_sector(sector_e & box, editor_scene_data & scene) 
+void render_sector(sector_e & box, editor_scene_data & scene)
 {
     segment_e & top = scene.segments[box.topSegmentID];
     segment_e & right = scene.segments[box.rightSegmentID];
@@ -128,7 +205,7 @@ bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex
     // check bottom and top lines
     if (worldPosition.x >= start.x && worldPosition.x <= end.x) 
     { 
-        if (glm::abs(worldPosition.z - start.z) < thresh)
+        if (abs(worldPosition.z - start.z) < thresh)
         {
             box.botColor = glm::vec3(1,0,0);        
             hover.type = hover_type::wall_segment;
@@ -137,7 +214,7 @@ bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex
             
             return true;
         }
-        else if (glm::abs(worldPosition.z - end.z) < thresh)
+        else if (abs(worldPosition.z - end.z) < thresh)
         {
             box.topColor = glm::vec3(1,1,0);      
             hover.type = hover_type::wall_segment;
@@ -161,7 +238,7 @@ bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex
      // check bottom and top lines
     if (worldPosition.z >= start.z && worldPosition.z <= end.z) 
     {
-        if (glm::abs(worldPosition.x - start.x) < thresh)
+        if (abs(worldPosition.x - start.x) < thresh)
         {
             box.leftColor = glm::vec3(1,0,0);     
             hover.type = hover_type::wall_segment;
@@ -171,7 +248,7 @@ bool checkHoverPosition(glm::vec3 worldPosition, sector_e & box, int sectorIndex
 
             return true;
         }
-        else if (glm::abs(worldPosition.x - end.x) < thresh)
+        else if (abs(worldPosition.x - end.x) < thresh)
         {
             box.rightColor = glm::vec3(1,1,0);        
             hover.type = hover_type::wall_segment;
