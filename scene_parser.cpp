@@ -4,15 +4,34 @@
 #include "bsp.hpp"
 using namespace std;
 
-char key[64];
-char dummy[64];
 
+// dummy variables used when parsing the scene file
+std::string key;
+std::string dummy;
+
+
+// MEMORY ARENA - all scene memory is allocated from this arena
+#define SCENE_ARENA_SIZE 1024*1024
+unsigned char gSceneMemory[SCENE_ARENA_SIZE];
+unsigned char* gMemoryHead;
+unsigned char* allocateFromArena(int numBytes) ;
+#define ARENA_ALLOC(N, T) (T*) allocateFromArena((N) * sizeof(T))
+
+
+void load_sector_data(bsp_tree & tree, fstream & stream);
+void load_segment_data(bsp_tree & tree, fstream & stream);
+void load_node_data(bsp_tree & tree, fstream & stream);
 void loadSector(int index, bsp_tree & tree, fstream & stream);
 void loadSegment(int index, bsp_tree & tree, fstream & stream);
 void loadNode(int index, bsp_tree & tree, fstream & stream);
+unsigned int _required_renderables(wall_segment & segment) ;
+unsigned int _calculate_required_renderables(bsp_tree & tree);
+
 
 void load_scene(const char* filename, bsp_tree & tree) 
 {    
+    gMemoryHead = &gSceneMemory[0];
+
     fstream stream;
     stream.open(filename);
     int maxLines = 1000;
@@ -21,12 +40,13 @@ void load_scene(const char* filename, bsp_tree & tree)
     { 
         stream >> key;        
         maxLines--;
-        
+
         if (maxLines < 0)
         {
             printf("too many lines\n");
             break;
         }
+
 
         if (stream.eof()) 
         { 
@@ -35,52 +55,58 @@ void load_scene(const char* filename, bsp_tree & tree)
 
         if (key == "sectors") 
         { 
-
             stream >> dummy >> tree.numSectors;
-            tree.sectors = (sector*) malloc(tree.numSectors * sizeof(sector));
+            tree.sectors = ARENA_ALLOC(tree.numSectors, sector);
+            load_sector_data(tree, stream);
 
-            for (int i = 0; i < tree.numSectors; i++) 
-            {
-                loadSector(i, tree, stream);
-            }
         }
+
 
         if (key == "segments")
         {
             stream >> dummy >> tree.numSegments;
-            tree.segments = (wall_segment*) malloc(tree.numSegments * sizeof(wall_segment));
-
-            for (int i = 0; i < tree.numSegments; i++) 
-            {
-               loadSegment(i, tree, stream);
-            }
+            tree.segments = ARENA_ALLOC(tree.numSegments, wall_segment);
+            load_segment_data(tree, stream);
         }     
 
 
-        // NOTE(josel): don't rebuild the tree structure, just load it in from the scene file like below
+        if (key == "nodes")
+        {   
+            stream >> dummy >> tree.numNodes; 
+            tree.nodes = ARENA_ALLOC(tree.numNodes, bsp_node);
+            load_node_data(tree, stream);
+            tree.root = &tree.nodes[0]; 
+        }     
 
-        // if (key == "nodes")
-        // {
-        //     stream >> soKey >> tree.numNodes;
-        //     tree.nodes = (bsp_node*) malloc(tree.numNodes * sizeof(bsp_node));
-
-        //     for (int i = 0; i < tree.numNodes; i++) 
-        //     {
-        //         bsp_node & node = tree.nodes[i];
-        //         stream >> soKey >> node.segmentIndex;
-        //         int frontID, backID;
-        //         stream >> soKey >> frontID;
-        //         stream >> soKey >> backID;
-        //         node.front = &tree.nodes[frontID]; 
-        //         node.back = &tree.nodes[backID]; 
-        //     }
-
-        //     tree.root = &tree.nodes[0];
-        // }     
     }
 
     stream.close();
- }
+    unsigned int requiredRenderables = _calculate_required_renderables(tree); // either 1 or 2 renderables per wall segment
+    requiredRenderables += (2 * tree.numSectors); // 2 renderables (floor and ceiling) for each sector
+    tree.renderables = ARENA_ALLOC(requiredRenderables, node_render_data);  
+    
+    std::cout << "memory used for scene data: [" << (gMemoryHead - gSceneMemory) << " bytes] " <<std::endl; 
+}
+
+void load_sector_data(bsp_tree & tree, fstream & stream) {
+    for (int i = 0; i < tree.numSectors; i++) {
+        loadSector(i, tree, stream);
+    }
+}
+
+void load_segment_data(bsp_tree & tree, fstream & stream) {
+     for (int i = 0; i < tree.numSegments; i++) {
+        loadSegment(i, tree, stream);
+    }
+}
+
+void load_node_data(bsp_tree & tree, fstream & stream) 
+{
+    for (int i = 0; i < tree.numNodes; i++) 
+    {
+        loadNode(i, tree, stream);
+    }
+}
 
 
 void loadSector(int index, bsp_tree & tree, fstream & stream)
@@ -105,8 +131,8 @@ void loadSegment(int index, bsp_tree & tree, fstream & stream)
     s.start.y = 0.0f;
     s.end.y = 0.0f;
 
-    s.normal = glm::cross(glm::normalize(s.start - s.end), glm::vec3(0,1,0));
-
+    s.normal = segment_normal(s);
+    
     int frontID, backID;
     stream >> dummy >> frontID;
     stream >> dummy >> backID;
@@ -123,6 +149,53 @@ void loadNode(int index, bsp_tree & tree, fstream & stream)
     int frontID, backID;
     stream >> dummy >> frontID;
     stream >> dummy >> backID;
-    node.front = &tree.nodes[frontID]; 
-    node.back = &tree.nodes[backID]; 
+
+    if (frontID > -1) 
+    {
+        node.front = &tree.nodes[frontID]; 
+    } else 
+    {
+        node.front = nullptr;
+    }
+
+    if (backID > -1) 
+    {
+        node.back = &tree.nodes[backID]; 
+    } else
+    {
+        node.back = nullptr;
+    }
+}
+
+
+unsigned int _required_renderables(wall_segment & segment) 
+{
+    if (segment.backSectorID > -1) 
+    {
+        return 2;
+    }
+    return 1;
+}
+
+
+unsigned int _calculate_required_renderables(bsp_tree & tree) 
+{
+    unsigned int requiredRenderables = 0;
+
+    // create one new bsp_node for each wall segment in the room.
+    for (int segmentID = 0; segmentID < tree.numSegments; segmentID++) 
+    { 
+        wall_segment & segment = tree.segments[segmentID];
+        bsp_node & newSegmentNode = tree.nodes[segmentID];
+        requiredRenderables += _required_renderables(segment);
+    }
+
+    return requiredRenderables;
+}
+
+unsigned char* allocateFromArena(int numBytes) 
+{
+    unsigned char* result = gMemoryHead;
+    gMemoryHead += numBytes;
+    return result;
 }

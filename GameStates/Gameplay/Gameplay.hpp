@@ -7,6 +7,7 @@
 #include "../../g_main.hpp"
 #include "../../game_audio.hpp"
 #include "../../game_data.hpp"
+
 extern game_state gStateGameplay;
 
 GAMESTATE_INIT(Gameplay);

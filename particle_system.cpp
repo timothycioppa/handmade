@@ -10,9 +10,11 @@ unsigned int matrixBufferID;
 unsigned int ageBufferID;
 static_mesh _quadMesh;
 texture_info texInfo;
-float gravity = -1.0f;
+texture_info noiseTexInfo;
 
-void simulate_system(particle_system & system,particle_simulation_context & context)
+glm::vec3 gravity = {0,-1,0};
+
+void simulate_system(particle_system & system, particle_simulation_context & context)
 {    
     int liveParticles = NUM_PARTICLES;
   
@@ -21,26 +23,25 @@ void simulate_system(particle_system & system,particle_simulation_context & cont
     for(int i = 0; i < NUM_PARTICLES; i++) 
     {
         particle_state & particle = system.states[i];
-        
-
+    
         if (particle.alive) 
         {
-            particle.velocity = particle.initial_velocity + gravity * particle.age * glm::vec3(0,1,0);
+            particle.velocity = particle.initial_velocity + particle.age * gravity;
             particle.position = particle.initial_position + particle.age * particle.velocity;
-            particle.age += context.deltaTime; 
 
+            particle.age += context.deltaTime; 
             system.ageLifetime[i] = { particle.age, particle.lifetime };
 
-            glm::vec3 direction = glm::normalize(context.cameraPosition - particle.position); 
-            float size = 12.0f * (1.0f - particle.age / particle.lifetime);
-            system.matrices[i] = glm::inverse(glm::lookAt(particle.position, particle.position + direction, glm::vec3(0,1,0) )) * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, size));
+            glm::vec3 directionToCamera = glm::normalize(context.cameraPosition - particle.position); 
+            float size = 8.0f * (1.0f - particle.age / particle.lifetime);
+            system.matrices[i] = glm::inverse(glm::lookAt(particle.position, particle.position + directionToCamera, glm::vec3(0,1,0) )) * glm::scale(glm::mat4(1.0f), glm::vec3(size, size, size));
 
             if (particle.age > particle.lifetime) 
             {
                 particle.alive = false;
             }
         }
-         else 
+        else 
         { 
             liveParticles--;
         }
@@ -52,32 +53,31 @@ void simulate_system(particle_system & system,particle_simulation_context & cont
     }
 }
 
-
-
 void init_system(particle_system & system, system_spawn_info &info) 
 {    
     system.alive = true;
     system.age = 0.0f;
-    
+
     for (int i = 0; i < NUM_PARTICLES; i++) 
     {
         particle_state & particle = system.states[i];
 
         particle.alive = true;
-        particle.lifetime = random(0.25f, 0.5f);
+        particle.lifetime = random(info.ageRange.x, info.ageRange.y);
         particle.age = 0.0f;
         particle.position = info.initialPosition,
-        particle.velocity = glm::vec3(0.0f);
-        particle.initial_velocity = 5.0f * random_unit_vector();
         particle.initial_position = info.initialPosition,
+        particle.velocity = glm::vec3(0.0f);
+        particle.initial_velocity = random(info.speedRange.x, info.speedRange.y) * random_unit_vector();
         system.matrices[i] = glm::mat4(1.0f);
-        system.ageLifetime[i] = {0.0f, 0.0f};
+        system.ageLifetime[i] = { 0.0f,  particle.lifetime };
     }
 }
 
 void init_particles(const char* meshFile) 
 {     
     load_texture("Textures/flamesheet.jpg", texInfo);
+    load_texture("Textures/MMCloudsNoise.png", noiseTexInfo);
     load_mesh(meshFile, _quadMesh);
 
     // 1. generate buffer to hold instance matrix data
@@ -90,7 +90,6 @@ void init_particles(const char* meshFile)
     glBindBuffer(GL_ARRAY_BUFFER, ageBufferID);
     glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * sizeof(glm::vec2), NULL, GL_STREAM_DRAW );
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 
     glBindVertexArray(_quadMesh.VAO);
     {
@@ -124,10 +123,10 @@ void init_particles(const char* meshFile)
             glVertexAttribDivisor(5, 1);
             glVertexAttribDivisor(6, 1);
             glVertexAttribDivisor(7, 1);
-        }
-
         
+        }        
     }    
+
     glBindVertexArray(0);
 }
 
@@ -147,9 +146,17 @@ void render_system(particle_system & system, camera_data & camData)
     shader_data sData = bind_shader(ShaderCode::DEFAULT_PARTICLE);
     default_particle_ids & ids = uniform_data(sData, default_particle_ids);
 
-    set_mat4(ids.projection, camData.projection);
-    set_mat4(ids.view, camData.view);
-    set_texture(ids.mainTex, texInfo.textureID, 0);
+
+    glUniformMatrix4fv(ids.projection, 1, GL_FALSE, &(camData.projection)[0][0]);
+    glUniformMatrix4fv(ids.view, 1, GL_FALSE, &(camData.view)[0][0]);
+
+    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(ids.mainTex, 0);
+    glBindTexture(GL_TEXTURE_2D, texInfo.textureID);
+
+    glActiveTexture(GL_TEXTURE1);
+    glUniform1i(ids.noiseTex, 1);
+    glBindTexture(GL_TEXTURE_2D, noiseTexInfo.textureID);
 
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);

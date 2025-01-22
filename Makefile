@@ -3,7 +3,7 @@ LIBS= freetype.dll glad.a libglfw3.a imgui.a -lopengl32  -lgdi32
 
 BASE_FLAGS=-DGLM_FORCE_LEFT_HANDED
 DEBUG_FLAGS=-DEDITOR_DEBUG -g
-ALLOBJECTS=build/obj/main.o build/obj/bsp.o build/obj/bsp_collision.o build/obj/TextureStore.o build/obj/Transform.o build/obj/editor_controller.o build/obj/editor_main.o build/obj/g_main.o build/obj/game_context.o build/obj/GAME_main.o build/obj/game_state.o build/obj/i_input.o build/obj/light.o build/obj/math_utils.o build/obj/player.o build/obj/r_main.o build/obj/scene_parser.o build/obj/utils.o build/obj/GLMesh.o build/obj/GLShader.o build/obj/GLTextRenderer.o build/obj/GLTexture.o build/obj/LevelEditor.o  build/obj/TitleScreen.o build/obj/Gameplay.o build/obj/game_audio.o build/obj/editor_utils.o build/obj/ShaderStore.o build/obj/particle_system.o
+ALLOBJECTS=build/obj/main.o build/obj/ui_button.o build/obj/bsp.o build/obj/scratch.o build/obj/bsp_collision.o build/obj/TextureStore.o build/obj/Transform.o build/obj/editor_controller.o build/obj/editor_main.o build/obj/g_main.o build/obj/game_context.o build/obj/GAME_main.o build/obj/game_state.o build/obj/i_input.o build/obj/light.o build/obj/math_utils.o build/obj/player.o build/obj/r_main.o build/obj/scene_parser.o build/obj/utils.o build/obj/GLMesh.o build/obj/GLShader.o build/obj/GLTextRenderer.o build/obj/GLTexture.o build/obj/LevelEditor.o  build/obj/TitleScreen.o build/obj/Gameplay.o build/obj/game_audio.o build/obj/editor_utils.o build/obj/ShaderStore.o build/obj/particle_system.o
 
 all: executable
 debug: BASE_FLAGS += $(DEBUG_FLAGS)
@@ -26,6 +26,9 @@ build/obj/bsp.o: bsp.cpp bsp.hpp
 
 build/obj/bsp_collision.o: bsp_collision.cpp bsp_collision.hpp
 	g++ $(BASE_FLAGS) -c bsp_collision.cpp -o build/obj/bsp_collision.o $(INCLUDES) 
+
+build/obj/ui_button.o: ui/ui_button.cpp ui/ui_button.hpp
+	g++ $(BASE_FLAGS) -c ui/ui_button.cpp -o build/obj/ui_button.o $(INCLUDES) 
 
 build/obj/TextureStore.o: TextureStore.cpp TextureStore.hpp
 	g++ $(BASE_FLAGS) -c TextureStore.cpp -o build/obj/TextureStore.o $(INCLUDES) 
@@ -59,6 +62,9 @@ build/obj/math_utils.o: math_utils.cpp math_utils.hpp
 
 build/obj/player.o: player.cpp player.hpp
 	g++ $(BASE_FLAGS) -c player.cpp -o build/obj/player.o $(INCLUDES)
+
+build/obj/scratch.o: scratch.cpp scratch.hpp
+	g++ $(BASE_FLAGS) -c scratch.cpp -o build/obj/scratch.o $(INCLUDES)
 
 build/obj/r_main.o: r_main.cpp r_main.hpp
 	g++ $(BASE_FLAGS) -c r_main.cpp -o build/obj/r_main.o $(INCLUDES)

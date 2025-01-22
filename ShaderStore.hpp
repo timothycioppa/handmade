@@ -56,7 +56,6 @@ struct editor_grid_ids
 struct hdr_blit_ids 
 { 
     unsigned int hdrBuffer;
-    unsigned int hdr;
     unsigned int exposure;
 };
 
@@ -91,6 +90,7 @@ struct default_particle_ids
     unsigned int projection;
     unsigned int view;
     unsigned int mainTex;
+    unsigned int noiseTex;
 };
 
 struct line_ids 

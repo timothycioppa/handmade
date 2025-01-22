@@ -180,6 +180,7 @@ GAMESTATE_RENDER(LevelEditor)
 
     renderContext.cameraPosition = gEditorPlayer.Position;
     renderContext.cursorWorldPosition = data.currentWorldPosition;
+    
     G_RenderLevelEditor(renderContext);
 }
 

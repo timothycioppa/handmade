@@ -58,9 +58,9 @@ enum InputModifiers
 
 enum system_event_type 
 { 
-    KEY_EVT,
-    MOUSE_BUTTON_EVT,
-    MOUSE_MOVEMENT_EVT 
+    KEY_EVT = 0,
+    MOUSE_BUTTON_EVT = 1,
+    MOUSE_MOVEMENT_EVT = 2 
 };
 
 struct system_event 

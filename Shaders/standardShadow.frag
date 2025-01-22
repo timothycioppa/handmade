@@ -3,6 +3,7 @@ layout (location = 0) out vec4 FragColor;
 layout (location = 1) out vec3 FragNormal;
 layout (location = 2) out vec3 FragPosition;
 #define MAX_LIGHTS 4
+
 in VS_OUT 
 {
     vec3 FragPos;
@@ -101,9 +102,7 @@ void main()
     vec3 norm = normalize(fs_in.Normal);
     vec3 viewDir = normalize(unity_CameraPosition - fs_in.FragPos);
     vec3 calculatedColor = vec3(0,0,0);
-
-    int i = 0;
-
+  
     for (int i = 0; i < MAX_LIGHTS; i++) 
     { 
         if (lights[i].active == 1) 
@@ -113,9 +112,10 @@ void main()
             float dist = distance(lights[i].position, fs_in.FragPos);
             vec3 lightDir = normalize(dLight);                
             float diffuseValue = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = diffuseValue * material.diffuse;          
             vec3 reflectDir = reflect(-lightDir, norm);  
             float specValue = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+            
+             vec3 diffuse = diffuseValue * material.diffuse;          
             vec3 specular = specValue * lights[i].color;      
             calculatedColor += lights[i].intensity * (diffuse + specular) * invSqDist;
         }

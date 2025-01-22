@@ -73,7 +73,10 @@
         "utils.hpp": "c",
         "glad.h": "c",
         "glm.hpp": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "vec2.hpp": "c",
+        "string.h": "c",
+        "platform_common.hpp": "c"
     },
     "cmake.sourceDirectory": "C:/Users/josel/code/cpp/handmade/include/glm"
 }

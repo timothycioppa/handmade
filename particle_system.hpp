@@ -2,7 +2,7 @@
 #define _PARTICLE_SYSTEM_HPP
 #include "platform_common.hpp"
 
-#define NUM_PARTICLES 25
+#define NUM_PARTICLES 45
 
 struct particle_state 
 { 
@@ -27,8 +27,8 @@ struct particle_system
 struct system_spawn_info 
 { 
     glm::vec3 initialPosition;
-    glm::vec3 initialVelocity;
-    float lifetime;
+    glm::vec2 ageRange;
+    glm::vec2 speedRange;
 };
 
 struct particle_simulation_context

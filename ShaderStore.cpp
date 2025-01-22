@@ -8,7 +8,9 @@ shader_entry entries[NUM_SHADERS] =
 #undef SHADER_ENTRY
 
 compiled_shader compiledShaders[NUM_SHADERS];
-void* ShaderUniformIdBuffer;
+
+// NOTE(josel): we may need to expand this if we have a LOT of shader uniforms, but that would probably be crazy
+unsigned char* ShaderUniformIdBuffer[4096];
 
 void init_uniforms(shadow_depth_ids *ids, compiled_shader & s)
 {
@@ -52,7 +54,6 @@ void init_uniforms(editor_grid_ids *ids, compiled_shader & s)
 void init_uniforms(hdr_blit_ids *ids, compiled_shader & s) 
 {
     unsigned int pID = s.programID;
-    ids->hdr = glGetUniformLocation(pID, "hdr");
     ids->hdrBuffer = glGetUniformLocation(pID, "hdrBuffer");
     ids->exposure = glGetUniformLocation(pID, "exposure");
 }
@@ -98,6 +99,7 @@ void init_uniforms(default_particle_ids *ids, compiled_shader & s)
     ids->projection = glGetUniformLocation(pid, "projection"); 
     ids->view = glGetUniformLocation(pid, "view"); 
     ids->mainTex = glGetUniformLocation(pid, "mainTex");
+    ids->noiseTex =  glGetUniformLocation(pid, "noiseTex");
 }
 
 void initialize_shader_store() 
@@ -109,9 +111,8 @@ void initialize_shader_store()
         entries[i].uniformStructOffset = size;
         size += entries[i].uniformStructSize;
     }
-
-    ShaderUniformIdBuffer = malloc(size);
- 
+    
+    printf("shader uniform size: [%d]\n", size);
     #define SHADER_ENTRY(index, code, vert, frag, uniform_type) load_shader(vert, frag, compiledShaders[index]); \
     init_uniforms((uniform_type*) ((unsigned char*) ShaderUniformIdBuffer + entries[index].uniformStructOffset), compiledShaders[index]); \
 
@@ -126,7 +127,6 @@ void release_shader_store()
     {
         release_shader(compiledShaders[i]);
     }    
-    free (ShaderUniformIdBuffer);
 }
 
 shader_data bind_shader(ShaderCode code) 

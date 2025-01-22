@@ -5,7 +5,6 @@
 
 struct RenderContext 
 { 
-    glm::mat4 m;   // MODEL
     glm::mat4 v;   // VIEW
     glm::mat4 p;   // PROJECTION
     glm::mat4 lightSpace;   // LIGHT SPACE

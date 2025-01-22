@@ -77,6 +77,7 @@ struct bsp_node_e
     int backID;
 };
 
+#define MAX_TREE_NODES 256
 
 struct editor_scene_data 
 {

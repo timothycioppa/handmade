@@ -1,35 +1,51 @@
 
 #include "utils.hpp"
+#include "scratch.hpp"
 
-struct BMP loadBMP(const char* filename) { 
+bitmap_header load_bitmap(const char* filename) 
+{
+	char* contents = readfile(filename);
 
+	if (contents != NULL) 
+	{ 
+		bitmap_header* header = (bitmap_header*) contents;
+		uint32_t* pixels = (uint32_t*) ((uint8_t*) header + (header->BitmapOffset));
+		free(contents);
+	}	
+	
+	bitmap_header result;
+	return result;
+}
+
+
+struct BMP loadBMP_scratch(const char* filename) 
+{ 
 	struct BMP result;	
 	result.dataPos = 0;
 	result.width = 0;
 	result.height = 0;
 	result.imageSize = 0;
 	result.data = NULL;
-	
 
 	FILE* fp = fopen(filename, "rb");
 	
 	if (fp == NULL) 
 	{ 
-		printf("unable to open file");
+		printf("unable to open file [%s]\n", filename);
 		return result;
 	}
 
 
 	if (fread(result.header, 1, 54, fp) != 54) 
 	{ 
-		printf("invalid bmp format");
+		printf("invalid bmp format [%s]\n", filename);
 		fclose(fp);
 		return result;
 	}
 
 	if (result.header[0] != 'B' || result.header[1] != 'M') 
 	{ 
-		printf("invalid bmp format");
+		printf("invalid bmp format [%s]\n", filename);
 		fclose(fp);
 		return result;
 	}
@@ -37,7 +53,6 @@ struct BMP loadBMP(const char* filename) {
 	// Make sure this is a 24bpp file
 	if ( *(int*)&(result.header[0x1E])!=0  )         {printf("Not a correct BMP file\n");    fclose(fp); return result;}
 	if ( *(int*)&(result.header[0x1C])!=24 )         {printf("Not a correct BMP file\n");    fclose(fp); return result;}
-
 
 	result.dataPos    = *(int*)&(result.header[0x0A]);
 	result.imageSize  = *(int*)&(result.header[0x22]);
@@ -55,6 +70,69 @@ struct BMP loadBMP(const char* filename) {
 	}
 
 
+	result.data = (unsigned char*) scratch_alloc(result.imageSize);
+	
+	if (result.data) 
+	{
+		fread(result.data, 1, result.imageSize, fp);
+	}
+
+	fclose(fp);
+
+	return result;
+}
+
+
+struct BMP loadBMP(const char* filename) 
+{ 
+	struct BMP result;	
+	result.dataPos = 0;
+	result.width = 0;
+	result.height = 0;
+	result.imageSize = 0;
+	result.data = NULL;
+
+	FILE* fp = fopen(filename, "rb");
+	
+	if (fp == NULL) 
+	{ 
+		printf("unable to open file [%s]\n", filename);
+		return result;
+	}
+
+
+	if (fread(result.header, 1, 54, fp) != 54) 
+	{ 
+		printf("invalid bmp format [%s]\n", filename);
+		fclose(fp);
+		return result;
+	}
+
+	if (result.header[0] != 'B' || result.header[1] != 'M') 
+	{ 
+		printf("invalid bmp format [%s]\n", filename);
+		fclose(fp);
+		return result;
+	}
+
+	// Make sure this is a 24bpp file
+	if ( *(int*)&(result.header[0x1E])!=0  )         {printf("Not a correct BMP file\n");    fclose(fp); return result;}
+	if ( *(int*)&(result.header[0x1C])!=24 )         {printf("Not a correct BMP file\n");    fclose(fp); return result;}
+
+	result.dataPos    = *(int*)&(result.header[0x0A]);
+	result.imageSize  = *(int*)&(result.header[0x22]);
+	result.width      = *(int*)&(result.header[0x12]);
+	result.height     = *(int*)&(result.header[0x16]);
+
+	if (result.imageSize == 0) {
+		 
+		result.imageSize = result.width * result.height * 3;
+	}
+
+	if (result.dataPos == 0) 
+	{ 
+		result.dataPos = 54;
+	}
 
 	result.data = (unsigned char*) malloc(result.imageSize);
 	fread(result.data, 1, result.imageSize, fp);
@@ -63,16 +141,28 @@ struct BMP loadBMP(const char* filename) {
 	return result;
 }
 
+
+void freeBMP(BMP & bmp) 
+{
+	free(bmp.data);
+	bmp.data = NULL;
+	bmp.height = 0;
+	bmp.width = 0;
+	bmp.imageSize = 0;
+}
+
 char* readfile(const char* filename) 
 { 
  	FILE* fp = fopen(filename, "rb");
-	long lSize;
-	char* buffer;
+	
 	if (!fp) 
 	{ 
+		printf("unable to open file: [%s]\n", filename);
 		return 0;
 	}
 	
+	long lSize;
+	char* buffer;
 	fseek(fp, 0L, SEEK_END);
 	lSize = ftell(fp);
 	rewind(fp);
@@ -83,9 +173,43 @@ char* readfile(const char* filename)
 		return 0;
 	}
 
-	if (1 != fread(buffer, lSize, 1, fp)) { 
+	if (1 != fread(buffer, lSize, 1, fp)) 
+	{ 
 		fclose(fp);
 		free(buffer);
+		return 0;
+	}
+
+	fclose(fp);
+	return buffer;
+}
+
+char* readfile_scratch(const char* filename) 
+{ 
+ 	FILE* fp = fopen(filename, "rb");
+	
+	if (!fp) 
+	{ 
+		printf("unable to open file: [%s]\n", filename);
+		return 0;
+	}
+
+	long lSize;
+	char* buffer;
+	fseek(fp, 0L, SEEK_END);
+	lSize = ftell(fp);
+	rewind(fp);
+	buffer = (char*) scratch_calloc(1, lSize + 1);
+	
+	if (!buffer) 
+	{ 
+		fclose(fp);
+		return 0;
+	}
+
+	if (1 != fread(buffer, lSize, 1, fp)) 
+	{ 
+		fclose(fp);
 		return 0;
 	}
 
@@ -96,6 +220,7 @@ char* readfile(const char* filename)
 bool loadOBJ(const char* fileName, std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
 {	
 	FILE* fp = fopen(fileName, "rb");
+	
 	if (fp == NULL) 
 	{ 
 		printf("unable to open path [%s]\n", fileName);

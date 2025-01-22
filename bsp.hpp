@@ -23,7 +23,6 @@ struct bsp_node
     bsp_node * back;
 };
 
-#define MAX_TREE_NODES 256
 #define RENDERABLE_FEATURE renderable_index renderIndices; 
 
 struct sector 
@@ -115,7 +114,7 @@ struct bsp_tree
 
     // bsp tree structure. Traverse down through sectors (in front/behind) until we reach a room (or null if outside bounds of room)
     unsigned int numNodes;
-    bsp_node nodes[MAX_TREE_NODES];       
+    bsp_node *nodes;     
     bsp_node *root;    
 };
 
@@ -150,9 +149,9 @@ struct insertion_point
          
 sector* get_sector(const glm::vec3 & testPos, bsp_tree & tree);
 void bsp_tree_free(bsp_tree & tree);
-void build_bsp_tree(bsp_tree & tree);
+void initialize_render_data(bsp_tree & tree);
 wall_segment *get_wall_segment(SectorSide side, sector & s, bsp_tree & tree);
-
+glm::vec3 segment_normal(wall_segment & segment);
 
 #define INIT_SEGMENT(n, i) n.segmentIndex = i; n.front = n.back = nullptr;
 #define EXTRACT_WALL_SEGMENT(n) tree.segments[n->segmentIndex];

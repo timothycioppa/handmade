@@ -7,6 +7,7 @@
 #include "../../bsp_collision.hpp"
 
 #define WALL_TEST_THRESHOLD 2.5f
+
 float initialYValue;
 float initialYVelocity = 15.0f;
 float initialYValueFalling;
@@ -17,19 +18,56 @@ sector *currentSector = nullptr;
 raycast_hit hit;
 const char* sectortype = "ROOM";
 const char* solidsegmenttype = "WALL";
-
-// callback when the player moves between sectors
-void on_sector_changed(sector* oldSector, sector* newSector);
-void clear_single_frame_flags(bsp_tree & tree);
-void set_hit_highlighted();
-
 gameplay_context gameContext;
 
+struct collision_info 
+{
+    bool hit;
+    bool hitEnemy;
+    bool hitGeometry;
+};
+
+
+struct player_state
+{
+    // true whenever the user is TRYING to move 
+    bool movementRequested;
+
+    // whether the player's footsteps are currently playing
+    bool playingFootsteps;
+
+    // whether we're on the ground or not
+    bool grounded;
+
+    // true for the frame when we try to start moving
+    bool StartMoving;
+
+    // true for the frame we were moving and we stop
+    bool StopMoving;
+
+    // true for the frame we land on the ground, whether from jumping or falling
+    bool Landed;
+
+    // true on the frame we start jumping
+    bool Jumped;
+};
+
+player_state gPlayerState;
+
+// callback when the player moves between sectors
+void process_player_state(player_state & state); 
+void process_sector_change(sector* oldSector, sector* newSector, player_state & state);
+void clear_single_frame_flags(bsp_tree & tree);
+void set_hit_highlighted();
+void test_collisions(glm::vec3 pos, bsp_tree & tree, collision_info & info) ;
+void update_entities() ;
+void update_weapon_position() ;
 
 GAMESTATE_INIT(Gameplay)
 { 	   
     load_scene(INITIAL_LEVEL, scene);
-    build_bsp_tree(scene);
+    initialize_render_data(scene);
+
     ValidateTextures(scene);
 	Player_Init(&context);
     Audio_LoopSound(SoundCode::BACKGROUND_MUSIC);
@@ -38,6 +76,37 @@ GAMESTATE_INIT(Gameplay)
     gameContext.primaryWeapon.fireDelay = 0.5f;
     gameContext.primaryWeapon.fireTimer = 0.0f;
     gameContext.primaryWeapon.projectileSpeed = 100.0f;
+
+    gameContext.numEntities = 1;
+
+    game_entity & entity = gameContext.Entities[0];
+    entity.transform.position = {0, 8, 0};
+    entity.boundingBox.center = entity.transform.position;
+    entity.boundingBox.extents = {1,1,1};
+    entity.MoveSpeed = 1.0f;
+
+    entity.material = 
+    {
+        get_texture("Textures/wood.jpg"),
+        {1,1,1},
+        {1,1,1},
+        1.0f
+    };
+
+    gPlayerState.grounded = true;
+    gPlayerState.Jumped = false;
+    gPlayerState.Landed = false;
+    gPlayerState.movementRequested = false;
+    gPlayerState.playingFootsteps = false;
+    gPlayerState.StartMoving = false;
+    gPlayerState.StopMoving = false;
+
+    gameContext.weaponMaterial = {
+        get_texture("Textures/wood.jpg"),
+        {1,1,1},
+        {1,1,1},
+        1.0f
+    };
 }
 
 GAMESTATE_UPDATE(Gameplay)
@@ -46,14 +115,11 @@ GAMESTATE_UPDATE(Gameplay)
     
     if (nextSector != currentSector)
     {
-        on_sector_changed(currentSector, nextSector);
+        process_sector_change(currentSector, nextSector, gPlayerState);
         currentSector = nextSector;
     }
 
-    if (bsp_raycast(main_player.Position, main_player.Forward, hit, scene)) 
-    {         
-        set_hit_highlighted();
-    }
+    gPlayerState.grounded = !main_player.Jumping && !main_player.Falling;
 
     // handle jumping
     if (main_player.Jumping) 
@@ -65,6 +131,7 @@ GAMESTATE_UPDATE(Gameplay)
 
         if (main_player.Position.y < targetHeight) 
         {             
+            gPlayerState.Landed = true;
             main_player.Jumping = false;
             main_player.Position.y = targetHeight;
         }
@@ -91,27 +158,27 @@ GAMESTATE_UPDATE(Gameplay)
         Player_UpdateView(&context);
     }
 
-
     // process key input if we're not jumping or falling
     if (!main_player.Jumping && !main_player.Falling) 
     {
         Player_UpdateMovementDirection(&context);
     }
 
+    gPlayerState.movementRequested = sqrMag(main_player.MoveDir) > 0.1f;
 
     // collision detection and movement
-    if (sqrMag(main_player.MoveDir) > 0.1f) 
+    if (gPlayerState.movementRequested) 
     { 
         if (!main_player.Moving) 
         {
-            main_player.Moving = true;
-            Audio_LoopSound(SoundCode::PLAYER_RUN);
+            gPlayerState.StartMoving = true;
+            main_player.Moving = true;            
         }
 
         glm::vec3 testPos = main_player.Position + WALL_TEST_THRESHOLD * main_player.MoveDir;
 
-         if (test_pos_bsp(testPos, scene)) 
-         { 
+        if (test_pos_bsp(testPos, scene)) 
+        { 
             Player_UpdatePosition(&context);	
         }      
     } 
@@ -119,27 +186,26 @@ GAMESTATE_UPDATE(Gameplay)
     { 
         if (main_player.Moving) 
         {
-            main_player.Moving = false;
-            Audio_StopSound(SoundCode::PLAYER_RUN);
+            gPlayerState.StopMoving = true;
         }
+        main_player.Moving = false;
     }
 
     // jump if not falling or alreading jumping
     if (key_pressed(KeyCodes::KEY_SPACE)) 
     { 
-        if (!main_player.Jumping && !main_player.Falling) 
+        if (gPlayerState.grounded)
         { 
+            gPlayerState.Jumped = true;
             main_player.Jumping = true;
             main_player.JumpTimer = 0.0f; 
             initialYValue = main_player.Position.y;        
             targetHeight = initialYValue;
           
-            Audio_PlaySound(SoundCode::PLAYER_JUMP);
         }  
     }     
 
     weapon & primaryWeapon = gameContext.primaryWeapon;
-
 
     if (gameContext.explosion.alive) 
     {
@@ -152,6 +218,8 @@ GAMESTATE_UPDATE(Gameplay)
         simulate_system(gameContext.explosion, p_context); 
     }
 
+    collision_info collisionInfo = {false, false, false};
+
     // update all active projectiles
     for (int i = 0; i < MAX_PROJECTILES; i++) 
     {
@@ -163,7 +231,9 @@ GAMESTATE_UPDATE(Gameplay)
             p.position += (p.direction * speed * gContext.deltaTime);
             p.age += gContext.deltaTime;
 
-            if (!test_pos_bsp(p.position, scene)) 
+            test_collisions(p.position, scene, collisionInfo);
+
+            if (collisionInfo.hit) 
             { 
                 p.age = 0.0f;
                 p.active = false;
@@ -171,14 +241,22 @@ GAMESTATE_UPDATE(Gameplay)
                 system_spawn_info info;
                 {
                     info.initialPosition = p.position;
-                    info.initialVelocity = 10.0f * random_unit_vector();
-                    info.lifetime = random(1.0f, 3.0f);
+                    info.ageRange   = { 0.25f,  0.5f  };
+                    info.speedRange = { 15.0f,  25.0f };
+                                       
                     init_system(gameContext.explosion, info);
                 }
 
                 Audio_PlaySound(SoundCode::PROJECTILE_EXPLOSION);
 
-            } else if (p.age > p.lifetime) 
+                if (collisionInfo.hitEnemy)
+                {
+                    Audio_PlaySound(SoundCode::HIT_ENEMY);
+                }
+            }
+
+            // lived too long, despawn projectile 
+            else if (p.age > p.lifetime) 
             { 
                 p.age = 0.0f;
                 p.active = false;
@@ -186,7 +264,8 @@ GAMESTATE_UPDATE(Gameplay)
         }
     }
 
-    // process weapon fire delay
+    // process weapon fire delay, determine if we are able to fire again.
+
     if (primaryWeapon.fireTimer > 0.0f) 
     {
         primaryWeapon.fireTimer -= gContext.deltaTime;
@@ -203,9 +282,10 @@ GAMESTATE_UPDATE(Gameplay)
     {
         // fire weapon
         if (primaryWeapon.ableTofire) 
-        {                 
+        {        
             projectile* p = nullptr;
 
+            // find first free projectile
             for (int i = 0; i < MAX_PROJECTILES; i++) 
             {
                 projectile & proj = primaryWeapon.projectiles[i];
@@ -216,20 +296,24 @@ GAMESTATE_UPDATE(Gameplay)
                 }
             }
 
+            // fonud a projectile
             if (p != nullptr) 
             { 
                 p->active = true;
-                p->position = main_player.Position;
-                p->direction = main_player.Forward;
+                p->position = gameContext.weaponTransform.position;
+                p->direction = gameContext.weaponAimDir;
                 p->age = 0.0f;
                 p->lifetime = 5.0f;
 
                 primaryWeapon.fireTimer = primaryWeapon.fireDelay;
                 primaryWeapon.ableTofire = false;
-            }
-
+            }    
         }                  
     }
+
+    update_entities();
+    update_weapon_position();
+    process_player_state(gPlayerState);
 }
 
 GAMESTATE_RENDER(Gameplay)
@@ -331,22 +415,22 @@ GAMESTATE_EDITOR(Gameplay)
 
     // }
 
-    ImGui::Begin("player");    
-        glm::vec3 p = main_player.Position;
-        glm::vec3 f = main_player.Forward;
-        glm::vec3 r = main_player.Right;
-        glm::vec3 u = main_player.Up;
-        glm::vec3 m = main_player.MoveDir;
+    // ImGui::Begin("player");    
+    //     glm::vec3 p = main_player.Position;
+    //     glm::vec3 f = main_player.Forward;
+    //     glm::vec3 r = main_player.Right;
+    //     glm::vec3 u = main_player.Up;
+    //     glm::vec3 m = main_player.MoveDir;
 
 
-        ImGui::Text("Position: %g %g %g", p.x, p.y, p.z );
-        ImGui::Text("Forward: %g %g %g", f.x, f.y, f.z );
-        ImGui::Text("Right: %g %g %g", r.x, r.y, r.z );
-        ImGui::Text("Up: %g %g %g", u.x, u.y, u.z );
-        ImGui::Text("Movedir: %g %g %g", m.x, m.y, m.z );
+    //     ImGui::Text("Position: %g %g %g", p.x, p.y, p.z );
+    //     ImGui::Text("Forward: %g %g %g", f.x, f.y, f.z );
+    //     ImGui::Text("Right: %g %g %g", r.x, r.y, r.z );
+    //     ImGui::Text("Up: %g %g %g", u.x, u.y, u.z );
+    //     ImGui::Text("Movedir: %g %g %g", m.x, m.y, m.z );
 
 
-    ImGui::End();
+    // ImGui::End();
 }
 
 GAMESTATE_DESTROY(Gameplay)
@@ -356,7 +440,7 @@ GAMESTATE_DESTROY(Gameplay)
 
 EXPORT_GAME_STATE(Gameplay, gStateGameplay);
 
-void on_sector_changed(sector* oldSector, sector* newSector) 
+void process_sector_change(sector* oldSector, sector* newSector, player_state & state) 
 {
     if (newSector != nullptr)
     {
@@ -371,6 +455,7 @@ void on_sector_changed(sector* oldSector, sector* newSector)
                 // start falling 
                 if (newSector->floorHeight < oldSector->floorHeight) 
                 {
+                    state.Landed = true;
                     main_player.Falling = true;
                     main_player.FallTimer = 0.0f;
                     initialYValueFalling = main_player.Position.y;
@@ -468,4 +553,113 @@ void playerStats()
     ImGui::Text("P.UP:  { %g %g %g }", u.x, u.y, u.z);
     ImGui::Text("P.MOVE:  { %g %g %g }", m.x, m.y, m.z);
     ImGui::End();
+}
+
+void test_collisions(glm::vec3 pos, bsp_tree & tree, collision_info & info) 
+{
+    info.hit = !test_pos_bsp(pos, tree);
+
+    if (!info.hit) 
+    {
+        for (int i = 0; i < gameContext.numEntities; i++) 
+        {
+            if (aabb_contains(pos, gameContext.Entities[i].boundingBox))
+            {
+                Audio_PlaySound(SoundCode::HIT_ENEMY);
+                info.hit = true;
+                info.hitEnemy = true;
+                break;
+            }
+        }
+    } else
+    {
+        info.hitGeometry = true;
+    }
+}
+
+void update_entities() 
+{ 
+    for (int i = 0; i < gameContext.numEntities; i++) 
+    {
+        game_entity & entity = gameContext.Entities[i];
+        glm::vec3 & enemyPos = entity.transform.position;
+        glm::vec3 lookDir = glm::normalize(main_player.Position -  enemyPos);
+       
+        enemyPos += lookDir * gContext.deltaTime * entity.MoveSpeed;;
+        entity.boundingBox.center = enemyPos;
+        gameContext.Entities[i].transform.localToWorld = glm::inverse(glm::lookAt(enemyPos, enemyPos + lookDir, {0,1,0}));       
+    }
+}
+
+void process_player_state(player_state & state) 
+{ 
+    if (state.Jumped) 
+    {
+        Audio_PlaySound(SoundCode::PLAYER_JUMP);
+    }
+
+    if (state.playingFootsteps) 
+    {
+        if (!state.grounded)
+        {
+            state.playingFootsteps = false;
+            Audio_StopSound(SoundCode::PLAYER_RUN);
+        }
+
+        if (state.StopMoving) 
+        {
+            state.playingFootsteps = false;
+            Audio_StopSound(SoundCode::PLAYER_RUN);
+        }
+    }
+    else 
+    {
+        if (state.Landed) 
+        {
+            if (state.movementRequested) 
+            {
+                 state.playingFootsteps = true;
+                 Audio_LoopSound(SoundCode::PLAYER_RUN);
+            }
+        }
+
+        if (state.StartMoving) 
+        {
+            if (state.grounded) 
+            {
+                state.playingFootsteps = true;
+                Audio_LoopSound(SoundCode::PLAYER_RUN);
+            }
+        }
+    }
+
+    // transient flags, these should be reset after processing since they can only happen once
+    gPlayerState.StartMoving = false;
+    gPlayerState.StopMoving = false;
+    gPlayerState.Landed = false;
+    gPlayerState.Jumped = false;
+}
+
+float amp = 0.05f;
+float speed = 8.0f;
+glm::vec3 weaponScale = {.05, .1, .8};
+glm::vec3 weaponOffset = {0.5f, 0.0f, 0.25f};
+
+void update_weapon_position() 
+{ 
+    float bobOffset = sin(speed * gContext.applicationTime) * amp;   
+    
+    glm::vec3 weaponPos = 
+        main_player.Position + 
+            main_player.Right * weaponOffset.x + 
+            glm::vec3(0.0f, bobOffset + weaponOffset.y , 0.0f)  + 
+            main_player.Forward * weaponOffset.z;
+    
+    glm::vec3 target = main_player.Position + 20.0f * main_player.Forward;
+
+    gameContext.weaponTransform.position = weaponPos;
+    gameContext.weaponAimDir = glm::normalize(target - weaponPos);
+    gameContext.weaponTransform.localToWorld = glm::scale(glm::mat4(1.0f), weaponScale);
+    gameContext.weaponTransform.localToWorld =  glm::inverse(glm::lookAt(weaponPos, weaponPos + gameContext.weaponAimDir, {0,1,0})) *  gameContext.weaponTransform.localToWorld;
+
 }

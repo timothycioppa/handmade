@@ -26,6 +26,8 @@ light lights[MAX_LIGHTS];
 static_mesh quadMesh;
 static_mesh cubeMesh;
 static_mesh sphereMesh;
+static_mesh enemyMesh;
+Material enemyMat;
 
 float exposure = 1.0f;
 
@@ -40,11 +42,13 @@ struct lighting_uniforms
 
 lighting_uniforms light_uniforms;
 
-glm::vec2 vertCrosshairStart = glm::vec2(0.0f, -0.05f);
-glm::vec2 vertCrosshairEnd = glm::vec2(0.0f, 0.05f);
-glm::vec2 horCrosshairStart = glm::vec2(-0.05f, 0.0f);
-glm::vec2 horCrosshairEnd = glm::vec2(0.05f, 0.0f);
+glm::vec2 vertCrosshairStart = glm::vec2(0.0f, -0.03f);
+glm::vec2 vertCrosshairEnd = glm::vec2(0.0f, 0.03f);
+glm::vec2 horCrosshairStart = glm::vec2(-0.03f, 0.0f);
+glm::vec2 horCrosshairEnd = glm::vec2(0.03f, 0.0f);
 glm::vec3 crossColor = glm::vec3(1,0,0);
+
+RenderContext gRenderContext;
 
 void    GenerateHDRColorBuffer();
 void    GenerateShadowDepthBuffer();
@@ -65,17 +69,17 @@ void G_Init()
     init_light_uniforms();
     
     init_particles("Models/wall.obj");
-
+   
     load_mesh("Models/wall.obj", quadMesh);
     load_mesh("Models/cube.obj", cubeMesh);
     load_mesh("Models/sphere.obj", sphereMesh);
+    load_mesh("Models/suzanne.obj", enemyMesh);
 
     GenerateHDRColorBuffer();
     GenerateShadowDepthBuffer();
     InitializeShadowLight();
     InitializeSceneLights();
 
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 }
@@ -83,10 +87,11 @@ void G_Init()
 void G_Cleanup() 
 { 
     release_shader_store();
+    release_texture_store();
+
     release_mesh(quadMesh);
     release_mesh(cubeMesh);
     release_mesh(sphereMesh);
-    release_texture_store();
 }
 
 void GenerateHDRColorBuffer() 
@@ -99,8 +104,9 @@ void GenerateHDRColorBuffer()
 
     glGenFramebuffers(1, &hdrFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    
     {
-
+    
         // 1. generate HDR color buffer
         glGenTextures(1, &colorBuffer);
         glBindTexture(GL_TEXTURE_2D, colorBuffer);
@@ -218,10 +224,9 @@ void ValidateTextures(bsp_tree & tree)
 
 void InitializeShadowLight() 
 {
-
     shadowLight.position = glm::vec3(5, 5, 5);
     shadowLight.color = glm::vec3(1,1,1);
-    shadowLight.intensity = 0.1f;
+    shadowLight.intensity = 0.3f;
 
     shadowLight.near = 0.01f;
     shadowLight.far = 100.0f;
@@ -246,37 +251,7 @@ void InitializeSceneLights()
     }
 }
 
-void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
-{
-    if (node->back != nullptr) 
-    {        
-        render_shadow_depth_recursive(node->back, tree);
-    }
-
-    if (node->front != nullptr) 
-    {
-        render_shadow_depth_recursive(node->front, tree);
-    }
-
-    renderable_index & indices = tree.segments[node->segmentIndex].renderIndices;
-    shadow_depth_ids * ids = get_uniform_ids(ShaderCode::SHADOW_DEPTH, shadow_depth_ids);
-
-    if (indices.renderableIndex0 > -1)
-    {
-        glm::mat4 local2LightSpace = 
-           shadowLight.lightSpaceMatrix * tree.renderables[indices.renderableIndex0].transform.localToWorld;           
-        glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
-        R_DrawMesh(quadMesh);
-    }
-
-    if (indices.renderableIndex1 > -1)
-    {
-        glm::mat4 local2LightSpace = 
-            shadowLight.lightSpaceMatrix * tree.renderables[indices.renderableIndex1].transform.localToWorld;                    
-        glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
-        R_DrawMesh(quadMesh);
-    }
-}
+#define LIGHT_SPACE(l, index) l.lightSpaceMatrix * tree.renderables[index].transform.localToWorld;   
 
 void G_RenderShadowDepth(bsp_tree & scene) 
 { 
@@ -286,53 +261,77 @@ void G_RenderShadowDepth(bsp_tree & scene)
     glClear(GL_DEPTH_BUFFER_BIT);	                 
     render_shadow_depth_recursive(scene.root, scene);
     unbind_shader();    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // reset to HDR buffer for rendering
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
+    glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
 }
 
-void G_StartFrame() 
-{ 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void render_shadow_depth_recursive(bsp_node* node, bsp_tree & tree)
+{    
+    if (node->back != nullptr) 
+    {        
+        render_shadow_depth_recursive(node->back, tree);
+    }
+    
+    if (node->front != nullptr) 
+    {
+        render_shadow_depth_recursive(node->front, tree);
+    } 
+
+    // draw the segment's renderables
+    wall_segment & segment = tree.segments[node->segmentIndex];
+    renderable_index & indices = segment.renderIndices;
+    shadow_depth_ids * ids = get_uniform_ids(ShaderCode::SHADOW_DEPTH, shadow_depth_ids);
+
+    if (indices.renderableIndex0 > -1)
+    {    
+        glm::mat4 local2LightSpace = LIGHT_SPACE(shadowLight, indices.renderableIndex0);           
+        glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
+        R_DrawMesh(quadMesh);
+    }
+
+    if (indices.renderableIndex1 > -1)
+    {
+        glm::mat4 local2LightSpace = LIGHT_SPACE(shadowLight, indices.renderableIndex1);                     
+        glUniformMatrix4fv(ids->local2LightSpace, 1, GL_FALSE, glm::value_ptr(local2LightSpace));
+        R_DrawMesh(quadMesh);
+    }
 }
 
 void G_RenderScene(bsp_tree & scene, RenderContext & context) 
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
-    glClearColor(0,0,0, 1.0f);
-    glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     shader_data sData = bind_shader(ShaderCode::STANDARD_SHADOWED);
     unsigned int programID = sData.programID;
     standard_shadow_ids & uniformIDS = *((standard_shadow_ids *) sData.uniformIDS);
 
-    
     for (int i = 0; i < MAX_LIGHTS; i++) 
     {
         light & l = lights[i];
-        set_int(light_uniforms.activeIDS[i], l.active);
+        glUniform1i(light_uniforms.activeIDS[i], l.active);
 
         if (l.active == 1) 
         {
-            set_float3(light_uniforms.posIDS[i], l.Position);
-            set_float3(light_uniforms.colorIDS[i], l.Color);
-            set_float(light_uniforms.intensityIDS[i], l.intensity);
+            glUniform3f(light_uniforms.posIDS[i], l.Position.x, l.Position.y, l.Position.z);
+            glUniform3f(light_uniforms.colorIDS[i], l.Color.x, l.Color.y, l.Color.z);
+            glUniform1f(light_uniforms.intensityIDS[i], l.intensity);
         }
     }
 
+
     // common uniforms for all objects rendered
     set_texture(uniformIDS.shadowMapID,  context.shadowMapID, 1);
-    set_mat4(uniformIDS.viewID, context.v);
-    set_mat4(uniformIDS.lightSpaceID, context.lightSpace);
+    glUniformMatrix4fv(uniformIDS.viewID, 1, GL_FALSE, glm::value_ptr( context.v));
+    glUniformMatrix4fv(uniformIDS.lightSpaceID, 1, GL_FALSE, glm::value_ptr( context.lightSpace));
     set_float3(uniformIDS.cameraPositionID, context.cameraPosition);
     set_float3(uniformIDS.cameraForwardID, context.cameraForward);
     set_float3(uniformIDS.lightPosID, context.lightPosition);
     set_float3(uniformIDS.lightColorID, context.lightColor);
-    set_float(uniformIDS.lightStrengthID, context.lightPower);
-    set_float(uniformIDS.appTimeID, context.totalTime);
-    set_float(uniformIDS.deltaTimeID,context.deltaTime);
-    set_float(uniformIDS.cosTimeID, context.cosTime);
-    set_float(uniformIDS.sinTimeID, context.sinTime);
+    glUniform1f(uniformIDS.lightStrengthID, context.lightPower);
+    glUniform1f(uniformIDS.appTimeID, context.totalTime);
+    glUniform1f(uniformIDS.deltaTimeID,context.deltaTime);
+    glUniform1f(uniformIDS.cosTimeID, context.cosTime);
+    glUniform1f(uniformIDS.sinTimeID, context.sinTime);
 
     glEnable(GL_CULL_FACE);
     render_scene_recursive(scene.root, scene, context);
@@ -340,49 +339,9 @@ void G_RenderScene(bsp_tree & scene, RenderContext & context)
     glDisable(GL_CULL_FACE);
 }
 
-void G_RenderScene(bsp_tree & scene) 
-{ 
-    static RenderContext context;
 
-    context.shadowMapID = shadowDepthMapFB.texture;
-    context.cameraPosition = main_player.Position;
-    context.cameraForward = main_player.Forward;
-    context.lightSpace = shadowLight.lightSpaceMatrix;
-    context.lightPosition =shadowLight.position;
-    context.lightColor = shadowLight.color;
-    context.lightPower = shadowLight.intensity;
-    context.totalTime = gContext.applicationTime;
-    context.deltaTime = gContext.deltaTime;
-    context.sinTime = gContext.sinTime;
-    context.cosTime = gContext.cosTime;
-    context.v = main_player.camData.view;
-    context.p = main_player.camData.projection;
-
-    G_RenderScene(scene, context);
-}
-
-void G_RenderFinalFrame() 
-{
-    glViewport(0, 0, gContext.windowWidth , gContext.windowHeight );
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-    
-    shader_data data = bind_shader(ShaderCode::HDR_BLIT);    
-    hdr_blit_ids& uniformIDS = *((hdr_blit_ids*) data.uniformIDS);
-
-    {    
-        set_texture(uniformIDS.hdrBuffer,  hdrColorBufferFB.texture, 0);
-        set_int(uniformIDS.hdr, true);
-        set_float(uniformIDS.exposure,  1.0f);
-        R_RenderFullScreenQuad();
-    }
-
-    unbind_shader();
-}
 void G_PostProcessing() 
 { 
-#ifdef DONT_RUN
     // BLURRING: 
     {
         float width = gContext.windowWidth;
@@ -402,10 +361,10 @@ void G_PostProcessing()
 
         unbind_shader();
     }
-    #endif
 }
 
-void G_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scene, RenderContext & context, int texID) { 
+void G_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, Material material, bsp_tree & scene, RenderContext & context)
+{ 
    
     shader_data shaderData = bind_shader(ShaderCode::STANDARD_SHADOWED);
     standard_shadow_ids *uniformIDS = (standard_shadow_ids*) shaderData.uniformIDS;
@@ -416,171 +375,137 @@ void G_RenderMeshShadowed(static_mesh & mesh, glm::mat4 & model, bsp_tree & scen
         set_int(light_uniforms.activeIDS[i], l.active);
         if (l.active == 1)
         {
-            set_float3(light_uniforms.posIDS[i], l.Position);
-            set_float3(light_uniforms.colorIDS[i], l.Color);
-            set_float(light_uniforms.intensityIDS[i], l.intensity);
+            glUniform3f(light_uniforms.posIDS[i], l.Position.x, l.Position.y, l.Position.z);
+            glUniform3f(light_uniforms.colorIDS[i], l.Color.x, l.Color.y, l.Color.z);
+            glUniform1f(light_uniforms.intensityIDS[i], l.intensity);
         }
     }
 
     glm::mat4 modelView = main_player.camData.view * model;
     glm::mat4 modelViewProj = main_player.camData.projection * modelView;
 
-    set_texture(uniformIDS->shadowMapID,  context.shadowMapID, 1);
-    set_mat4(uniformIDS->viewID, context.v);
-    set_mat4(uniformIDS->lightSpaceID, context.lightSpace);
+    glActiveTexture(GL_TEXTURE1);
+    glUniform1i(uniformIDS->shadowMapID, 1);
+    glBindTexture(GL_TEXTURE_2D,  context.shadowMapID);
+
+
     set_float3(uniformIDS->cameraPositionID, context.cameraPosition);
     set_float3(uniformIDS->cameraForwardID, context.cameraForward);
     set_float3(uniformIDS->lightPosID, context.lightPosition);
     set_float3(uniformIDS->lightColorID, context.lightColor);
-    set_float(uniformIDS->lightStrengthID, context.lightPower);
-    set_float(uniformIDS->appTimeID, context.totalTime);
-    set_float(uniformIDS->deltaTimeID,context.deltaTime);
-    set_float(uniformIDS->cosTimeID, context.cosTime);
-    set_float(uniformIDS->sinTimeID, context.sinTime);
-    set_texture(uniformIDS->mainTexID, texID, 0);
-    set_float3(uniformIDS->diffuseID, {1,1,1});
-    set_float3(uniformIDS->specularID, {1,1,1});
-    set_float(uniformIDS->shininessID, 1.0f);
-    set_mat4(uniformIDS->modelID, model);
-    set_mat4(uniformIDS->modelViewID, modelView);
-    set_mat4(uniformIDS->modelViewProjID, modelViewProj);
+    glUniform1f(uniformIDS->lightStrengthID, context.lightPower);
+    glUniform1f(uniformIDS->appTimeID, context.totalTime);
+    glUniform1f(uniformIDS->deltaTimeID,context.deltaTime);
+    glUniform1f(uniformIDS->cosTimeID, context.cosTime);
+    glUniform1f(uniformIDS->sinTimeID, context.sinTime);
+    set_texture(uniformIDS->mainTexID, material.mainTexture->textureID, 0);
+    set_float3(uniformIDS->diffuseID, material.diffuse);
+    set_float3(uniformIDS->specularID, material.specular);
+    glUniform1f(uniformIDS->shininessID, material.shininess); 
+    glUniformMatrix4fv(uniformIDS->viewID, 1, GL_FALSE, glm::value_ptr(context.v));
+    glUniformMatrix4fv(uniformIDS->modelID, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(uniformIDS->modelViewID, 1, GL_FALSE, glm::value_ptr(modelView));
+    glUniformMatrix4fv(uniformIDS->modelViewProjID, 1, GL_FALSE, glm::value_ptr(modelViewProj));
+    glUniformMatrix4fv(uniformIDS->lightSpaceID, 1, GL_FALSE, glm::value_ptr(context.lightSpace));
 
     R_DrawMesh(mesh);
-    unbind_shader(); 
+    glUseProgram(0);
 
 }
 
-void RenderGun(bsp_tree & scene) 
-{ 
-    static RenderContext context;
-    context.shadowMapID = shadowDepthMapFB.texture;
-    context.cameraPosition = main_player.Position;
-    context.cameraForward = main_player.Forward;
-    context.lightSpace = shadowLight.lightSpaceMatrix;
-    
-    context.lightPosition = shadowLight.position;
-    context.lightColor = shadowLight.color;
-    context.lightPower = shadowLight.intensity;
-
-    context.totalTime = gContext.applicationTime;
-    context.deltaTime = gContext.deltaTime;
-    context.sinTime = gContext.sinTime;
-    context.cosTime = gContext.cosTime;
-    context.v = main_player.camData.view;
-    context.p = main_player.camData.projection;
-
-    float amp = 0.05f;
-    float speed = 8.0f;
-    float offset = sin(speed * context.totalTime) * amp;   
-
-    glm::vec3 pos = main_player.Position + main_player.Forward * 0.25f+ main_player.Right * 0.5f + glm::vec3(0.0f, offset, 0.0f);
-    glm::vec3 target = main_player.Position + 20.0f * main_player.Forward;
-    glm::vec3 scale = {.05, .1, .8};
-    glm::mat4 m = glm::inverse(glm::lookAt(pos, target, {0,1,0})) * glm::scale(glm::mat4(1.0f), scale);
-    glm::mat4 gunTransform = glm::inverse(glm::lookAt(pos, target, {0,1,0})) * glm::scale(glm::mat4(1.0f), scale);
-
+void RenderEntities(bsp_tree & scene, gameplay_context & gameContext) 
+{
+    for (int i = 0; i < gameContext.numEntities; i++) 
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
-        glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
-        G_RenderMeshShadowed(cubeMesh, gunTransform, scene, context, get_texture("Textures/wood.jpg")->textureID);
-    } 
+        game_entity & entity = gameContext.Entities[i];
+        glm::mat4 localToWorld = entity.transform.localToWorld; 
+        Material & mat = entity.material;
+
+        G_RenderMeshShadowed(enemyMesh, localToWorld, mat, scene, gRenderContext);
+    }
 }
 
-void RenderProjectiles(bsp_tree & scene, gameplay_context & gameContext) 
+float calculate_intensity(float x) 
+{
+    return 250.0f * exp(-10.0f * (x - 0.1f) * (x - 0.1f));
+}
+
+void RenderProjectiles(bsp_tree & scene, gameplay_context & gameplayContext) 
 {    
-    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
-    glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
     static glm::vec3 projectilePosition = {0,0,0};
 
-    if (gameContext.explosion.alive) 
+    light & explosionLight = lights[MAX_LIGHTS - 1];
+    explosionLight.active = 0;
+
+    if (gameplayContext.explosion.alive) 
     {
-        light & l = lights[MAX_LIGHTS - 1]; 
-        l.active = 1;
-        l.intensity = 100.0f * exp(-10.0f * (gameContext.explosion.age - 0.1f) * (gameContext.explosion.age - 0.1f));
-        l.Position = projectilePosition;
-       
-        render_system(gameContext.explosion, main_player.camData);
-    } 
-    else 
-    { 
-        light & l = lights[MAX_LIGHTS - 1];
-        l.active = 0;        
+
+        explosionLight.active = 1;
+        explosionLight.intensity = calculate_intensity(gameplayContext.explosion.age);
+        explosionLight.Position = projectilePosition;
+
+        render_system(gameplayContext.explosion, main_player.camData);
     }
 
     for (int i = 0; i < MAX_PROJECTILES - 1; i++) 
     {
-        projectile & p = gameContext.primaryWeapon.projectiles[i];
-        light & l = lights[i];
+        projectile & _projectile = gameplayContext.primaryWeapon.projectiles[i];
+        light & projectileLight = lights[i];
+        projectileLight.active = 0;
 
-        if (p.active) 
+        if (_projectile.active) 
         { 
-            l.active = 1;
-            l.intensity = 10.0f; 
-            l.Position = p.position;
-            projectilePosition = p.position;
+            projectileLight.active = 1;
+            projectileLight.intensity = 25.0f; 
+            projectileLight.Position = _projectile.position;
 
+            projectilePosition = _projectile.position;
 
-            G_RenderProjectile(p.position, scene);
-        } 
-        else 
-        {
-            l.active = 0;
-        }
+            G_RenderProjectile(_projectile.position, scene);
+        }         
     }
 }
 
 void G_RenderSceneShadowedFull(bsp_tree & scene, gameplay_context & gameContext) 
-{
-    draw_crosshairs();
-
-	G_StartFrame();
-    G_RenderShadowDepth(scene); 
-    G_RenderScene(scene);
-
-    RenderGun(scene);
+{      
+    G_RenderShadowDepth(scene);
+    G_RenderScene(scene, gRenderContext);
+    G_RenderMeshShadowed(cubeMesh, gameContext.weaponTransform.localToWorld, gameContext.weaponMaterial, scene, gRenderContext);
+    RenderEntities(scene, gameContext);
     RenderProjectiles(scene, gameContext);
-
-    // at this point the full G buffer is accessible, though the color buffer hasn't been remapped
-    // that happens in the hdr pass (G_RenderFinalFrame()) 
+    draw_crosshairs();
     G_RenderOverlay(); 
-    R_DrawLines();    
-    G_RenderFinalFrame();
+
+#ifdef DONT_RUN_THIS
     G_PostProcessing();
+#endif
+
 }
+
+char overlayDisplayText[256];
+glm::vec3 bottomLeft = glm::vec3(-1.0f, -1.0f, 0.0f);
+glm::vec3 dimensions = glm::vec3(2.0f, 0.3f, 0.0f);
 
 void G_RenderOverlay() 
 { 
-    static char text[256];
-    glm::vec3 bottomLeft = glm::vec3(-1.0f, -1.0f, 0.0f);
-    glm::vec3 dimensions = glm::vec3(2.0f, 0.3f, 0.0f);
     R_DrawColoredRect(bottomLeft, dimensions, glm::vec3(0.0f, 0.0f, 0.0f)); 
-    sprintf(text, "(%g, %g, %g)", main_player.Position.x, main_player.Position.y, main_player.Position.z);
-    R_DrawText(text, 0, 0, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f), GameFont::Anton);
-}
-
-void G_RenderEditorGrid(editor_render_context & rendercontext) 
-{ 
-    glViewport(0, 0, gContext.windowWidth, gContext.windowHeight);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(0.0f, 0.1f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-    
-    shader_data sData = bind_shader(ShaderCode::EDITOR_GRID);
-    editor_grid_ids & uniformIDS = *((editor_grid_ids*) sData.uniformIDS);    
-
-    {
-        glUniform2f(uniformIDS.cameraPosition , rendercontext.cameraPosition.x, rendercontext.cameraPosition.z);
-        glUniformMatrix4fv(uniformIDS.clipToWorld, 1,  GL_FALSE,glm::value_ptr(rendercontext.clipToWorld));
-        R_RenderFullScreenQuad(); 
-    }
-
-    unbind_shader(); 
+    sprintf(overlayDisplayText, "(%g, %g, %g)", main_player.Position.x, main_player.Position.y, main_player.Position.z);
+    R_DrawText(overlayDisplayText, 0, 0, 1.0f, glm::vec3(1.0f, 1.0f, 1.0f), GameFont::Anton);
 }
 
 void G_RenderLevelEditor(editor_render_context & renderContext) 
 { 
-    G_RenderEditorGrid(renderContext);
-    R_DrawLines();
+    // background grid
+    shader_data sData = bind_shader(ShaderCode::EDITOR_GRID);
+    editor_grid_ids & uniformIDS = *((editor_grid_ids*) sData.uniformIDS);    
+    {
+        glUniform2f(uniformIDS.cameraPosition , renderContext.cameraPosition.x, renderContext.cameraPosition.z);
+        glUniformMatrix4fv(uniformIDS.clipToWorld, 1,  GL_FALSE,glm::value_ptr(renderContext.clipToWorld));
+        R_RenderFullScreenQuad(); 
+    }
+    unbind_shader(); 
+
+    
     char buff[128];
     sprintf(buff, "[%.2g,%.2g]", renderContext.cursorWorldPosition.x, renderContext.cursorWorldPosition.z);
     R_DrawText(buff, gContext.mousePosition.x, gContext.windowHeight - gContext.mousePosition.y, 0.5f, glm::vec3(1.0f, 1.0f, 1.0f), GameFont::Ariel);
@@ -588,38 +513,71 @@ void G_RenderLevelEditor(editor_render_context & renderContext)
 
 void G_RenderProjectile(glm::vec3 position, bsp_tree & scene) 
 { 
-    static RenderContext context;
-    context.shadowMapID = shadowDepthMapFB.texture;
-    context.cameraPosition = main_player.Position;
-    context.cameraForward = main_player.Forward;
-    context.lightSpace = shadowLight.lightSpaceMatrix;
-    
-    context.lightPosition = shadowLight.position;
-    context.lightColor = shadowLight.color;
-    context.lightPower = shadowLight.intensity;
-
-    context.totalTime = gContext.applicationTime;
-    context.deltaTime = gContext.deltaTime;
-    context.sinTime = gContext.sinTime;
-    context.cosTime = gContext.cosTime;
-    context.v = main_player.camData.view;
-    context.p = main_player.camData.projection;
-
     glm::mat4 projectileTransform = glm::translate(glm::mat4(1.0f), position);
+    
+    Material mat = 
     {
-        glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);  
-        glViewport(0, 0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
-        G_RenderMeshShadowed(cubeMesh, projectileTransform, scene, context, get_texture("Textures/carpet.bmp")->textureID);
-    } 
+         get_texture("Textures/carpet.bmp"),
+         {1,1,1},
+         {1,1,1},
+         1.0f
+    };
+
+    G_RenderMeshShadowed(cubeMesh, projectileTransform, mat, scene, gRenderContext);
 }
 
-void G_RenderTitleScreen() 
+void G_RenderFrame(game_state *currentState, game_context & context) 
 { 
-    glViewport(0, 0, gContext.windowWidth, gContext.windowHeight);
+    // initialize per frame data to be sent into the shaders
+    gRenderContext.shadowMapID = shadowDepthMapFB.texture;
+    gRenderContext.cameraPosition = main_player.Position;
+    gRenderContext.cameraForward = main_player.Forward;
+    gRenderContext.lightSpace = shadowLight.lightSpaceMatrix;
+    gRenderContext.lightPosition =shadowLight.position;
+    gRenderContext.lightColor = shadowLight.color;
+    gRenderContext.lightPower = shadowLight.intensity;
+    gRenderContext.totalTime = gContext.applicationTime;
+    gRenderContext.deltaTime = gContext.deltaTime;
+    gRenderContext.sinTime = gContext.sinTime;
+    gRenderContext.cosTime = gContext.cosTime;
+    gRenderContext.v = main_player.camData.view;
+    gRenderContext.p = main_player.camData.projection;
+
+
+    // bind the HDR buffer for rendering
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrColorBufferFB.fbo);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glViewport(0,0, WINDOW_WIDTH_RES_X, WINDOW_HEIGHT_RES_Y);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+    // the actual game render call 
+    currentState->Render(context);  
+
+    // flush and render all lines/text to the HDR buffer
+    R_DrawLines();    
+    R_DrawAllText();
+
+    /* after all rendering, we blit the hdr buffer to the front buffer*/
+    glViewport(0, 0, gContext.windowWidth , gContext.windowHeight );
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(0.0f, 0.2f, .2f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
+    
+    shader_data data = bind_shader(ShaderCode::HDR_BLIT);    
+    hdr_blit_ids& uniformIDS = *((hdr_blit_ids*) data.uniformIDS);
+
+    {    
+        glActiveTexture(GL_TEXTURE0);
+        glUniform1i(uniformIDS.hdrBuffer, 0);
+        glBindTexture(GL_TEXTURE_2D, hdrColorBufferFB.texture);
+        glUniform1f(uniformIDS.exposure,  1.0f);
+
+        R_RenderFullScreenQuad();
+    }
+    unbind_shader();
 }
+
 
 void init_light_uniforms() 
 { 
@@ -628,8 +586,7 @@ void init_light_uniforms()
         return;
     }
 
-    light_uniforms.initialized = true;
-    
+    light_uniforms.initialized = true;    
     char lightBuff[64];
     unsigned int programID = program_id(ShaderCode::STANDARD_SHADOWED);
     
@@ -646,8 +603,7 @@ void init_light_uniforms()
         light_uniforms.colorIDS[i] =  glGetUniformLocation(programID, lightBuff);
         
         sprintf(lightBuff, "lights[%d].intensity", i);
-        light_uniforms.intensityIDS[i] =  glGetUniformLocation(programID, lightBuff);        
-    
+        light_uniforms.intensityIDS[i] =  glGetUniformLocation(programID, lightBuff);         
     }
 }
 
@@ -660,22 +616,22 @@ void draw_renderable(node_render_data & renderable, RenderContext & context, bsp
 
     renderable.rendered = true;
 
-    standard_shadow_ids & uniformIDS = *get_uniform_ids(ShaderCode::STANDARD_SHADOWED, standard_shadow_ids);
-
     glm::mat4 model = renderable.transform.localToWorld;
     glm::mat4 modelView = context.v * model;
     glm::mat4 modelViewProj = context.p * modelView;
 
-    // material uniforms
-    set_texture(uniformIDS.mainTexID,  renderable.material.mainTexture->textureID, 0);
-    set_float3(uniformIDS.diffuseID,   renderable.material.diffuse);
-    set_float3(uniformIDS.specularID,  renderable.material.specular);
-    set_float(uniformIDS.shininessID,  renderable.material.shininess);
+    standard_shadow_ids & uniformIDS = *get_uniform_ids(ShaderCode::STANDARD_SHADOWED, standard_shadow_ids);
+   
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, renderable.material.mainTexture->textureID);
+    glUniform1i(uniformIDS.mainTexID, 0);
 
-    // matrix uniforms
-    set_mat4(uniformIDS.modelID, model);
-    set_mat4(uniformIDS.modelViewID, modelView);
-    set_mat4(uniformIDS.modelViewProjID, modelViewProj);
+    glUniform3f(uniformIDS.diffuseID,   renderable.material.diffuse.x, renderable.material.diffuse.y, renderable.material.diffuse.z);
+    glUniform3f(uniformIDS.specularID,  renderable.material.specular.x, renderable.material.specular.y, renderable.material.specular.z);
+    glUniform1f(uniformIDS.shininessID,  renderable.material.shininess);
+    glUniformMatrix4fv(uniformIDS.modelID, 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(uniformIDS.modelViewID, 1, GL_FALSE, glm::value_ptr(modelView));
+    glUniformMatrix4fv(uniformIDS.modelViewProjID, 1, GL_FALSE, glm::value_ptr(modelViewProj));
 
     R_DrawMesh(quadMesh);  
 }

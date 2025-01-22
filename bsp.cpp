@@ -9,8 +9,6 @@ void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_
 void initialize_segmented_wall( wall_segment & segment,  node_render_data & topWall, node_render_data & bottomWall, bsp_tree & tree) ;
 void initialize_sector_floor(sector & s, node_render_data & floor, bsp_tree & tree) ;
 void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree & tree) ;
-unsigned int required_renderables(wall_segment & segment);
-insertion_point findInsertionPoint(wall_segment & segment, bsp_node * currentNode, bsp_tree & tree);
 
 wall_segment *get_wall_segment(SectorSide side, sector & s, bsp_tree & tree)
 {   
@@ -97,41 +95,6 @@ sector* get_sector(const glm::vec3 & testPos, bsp_tree & tree)
     return get_sector_recursive(testPos, tree.root, tree);
 }
 
-unsigned int initialize_wall_nodes(bsp_tree & tree) 
-{
-    int segmentID = 0;
-    bsp_node & root = tree.nodes[0];     
-    INIT_SEGMENT(root, segmentID)
-    tree.root = &root;
-    unsigned int requiredRenderables = required_renderables(tree.segments[segmentID]);
-    tree.numNodes = 1;
-
-    // create one new bsp_node for each wall segment in the room.
-    for (segmentID = 1; segmentID < tree.numSegments; segmentID++) 
-    { 
-        wall_segment & segment = tree.segments[segmentID];
-        bsp_node & newSegmentNode = tree.nodes[segmentID];
-        INIT_SEGMENT(newSegmentNode, segmentID)
-        insertion_point pivot = findInsertionPoint(segment, tree.root, tree);
-
-        if (pivot.insertionSide == 0) 
-        {  
-            pivot.node->front = &newSegmentNode;
-        }
-
-        if (pivot.insertionSide == 1) 
-        {
-            pivot.node->back = &newSegmentNode;
-        }
-        
-        requiredRenderables += required_renderables(segment);
-        tree.numNodes++;
-    }
-
-    return requiredRenderables;
-
-}
-
 unsigned int initialize_wall_renderables(bsp_tree & tree) 
 { 
     unsigned int currentRenderable = 0;
@@ -206,26 +169,15 @@ void initialize_room_renderables(unsigned int currentRenderable, bsp_tree & tree
     }
 }
 
-void build_bsp_tree(bsp_tree & tree)
+void initialize_render_data(bsp_tree & tree)
 {  
-    // generate all nodes for wall segments, returning the amount of renderables required
-    unsigned int requiredRenderables = initialize_wall_nodes(tree);
-
-    requiredRenderables += (2 * tree.numSectors);
-    tree.renderables = (node_render_data *) malloc(requiredRenderables * sizeof(node_render_data));
     tree.numRenderables = 0;
-
-    // the tree data is now built. We next go through and generate rendering data for each wall (potentially split), ceiling, and floor node
     unsigned int currentRenderable = initialize_wall_renderables(tree);
-
     initialize_room_renderables(currentRenderable, tree);
 }
 
 void bsp_tree_free(bsp_tree & tree) 
 {
-    free(tree.renderables);
-    free(tree.segments);
-    free(tree.sectors);
 }
 
 void initialize_solid_wall(wall_segment & segment, node_render_data & wall, bsp_tree & tree) 
@@ -364,45 +316,7 @@ void initialize_sector_ceiling(sector & s, node_render_data & ceiling, bsp_tree 
     ceiling.transform.localToWorld = glm::inverse(glm::lookAt(origin, lookAt, up)) * ceiling.transform.localToWorld;
 }
 
-unsigned int required_renderables(wall_segment & segment) 
+glm::vec3 segment_normal(wall_segment & segment) 
 {
-    if (segment.backSectorID > -1) 
-    {
-        return 2;
-    }
-    return 1;
+    return glm::normalize(glm::cross(segment.start - segment.end, {0,1,0}));
 }
-
-insertion_point findInsertionPoint(wall_segment & segment, bsp_node * currentNode, bsp_tree & tree) 
-{ 
-    wall_segment & parentSegment = tree.segments[currentNode->segmentIndex];    
-    
-    // segment lies in front of the current node's segment
-    if (glm::dot(segment.start - parentSegment.start, parentSegment.normal) >= 0 && 
-        glm::dot(segment.end - parentSegment.start, parentSegment.normal) >= 0)  
-    
-    {
-        if (currentNode->front != nullptr) 
-        {
-            return findInsertionPoint(segment, currentNode->front, tree);
-        } 
-        else
-        {
-            return {currentNode, 0};
-        } 
-    }
-    
-    // segment lies behind the current segment
-    else
-    {
-        if (currentNode->back != nullptr) 
-        {
-            return findInsertionPoint(segment, currentNode->back, tree);
-        }
-         else
-        {
-            return {currentNode, 1};
-        } 
-    }
-}
-

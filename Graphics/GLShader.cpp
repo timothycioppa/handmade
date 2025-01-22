@@ -5,7 +5,6 @@ void shader_init_uniforms(shader_render_lines shader) {}
 
 void set_uniforms(shader_render_lines & shader, line_render_uniforms & uniforms) {}
 
-
 void shader_init_uniforms(shader_hdr_blit & shader) 
 {
     unsigned int pID = shader.shader.programID;
@@ -131,18 +130,14 @@ void set_texture(GLuint uniformID, GLuint textureID, GLuint texUnit)
 
 bool load_shader(const char* vs, const char* fs, compiled_shader & result) 
 { 
-
     GLint Result = GL_FALSE;
     int InfoLogLength;
-    char* vertexShaderSource = readfile(vs);
-    char* fragmentShaderSource = readfile(fs);
+    char* vertexShaderSource = readfile_scratch(vs);
 
     result.vertexID = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(result.vertexID, 1, &vertexShaderSource, NULL);
-    printf("compiling vertex shader: %s\n", vs);
     glCompileShader(result.vertexID);
 
-    printf("verifying vertex shader [%d]\n", result.vertexID);
     glGetShaderiv(result.vertexID, GL_COMPILE_STATUS, &Result);
     glGetShaderiv(result.vertexID, GL_INFO_LOG_LENGTH, &InfoLogLength); 
 
@@ -153,13 +148,12 @@ bool load_shader(const char* vs, const char* fs, compiled_shader & result)
     }
 
     result.fragmentID = glCreateShader(GL_FRAGMENT_SHADER);
+    char* fragmentShaderSource = readfile_scratch(fs);
 
     glShaderSource( result.fragmentID, 1, &fragmentShaderSource, NULL);
-    printf("compiling fragment shader: %s\n", fs);
     glCompileShader( result.fragmentID);
 
     // Check Fragment Shader
-    printf("verifying fragment shader [%d]\n", result.fragmentID);
     glGetShaderiv(result.fragmentID, GL_COMPILE_STATUS, &Result);
     glGetShaderiv(result.fragmentID, GL_INFO_LOG_LENGTH, &InfoLogLength);
     if ( InfoLogLength > 0 ){
@@ -169,13 +163,11 @@ bool load_shader(const char* vs, const char* fs, compiled_shader & result)
     }
 
     result.programID = glCreateProgram();
-    printf("linking shader program [%d]\n", result.programID);
     glAttachShader( result.programID, result.vertexID);
     glAttachShader( result.programID, result.fragmentID);
     glLinkProgram( result.programID);
 
     // Check the program
-    printf("verifying program status [%d]\n",  result.programID);
     glGetProgramiv( result.programID, GL_LINK_STATUS, &Result);
     glGetProgramiv( result.programID, GL_INFO_LOG_LENGTH, &InfoLogLength);
     
@@ -187,8 +179,6 @@ bool load_shader(const char* vs, const char* fs, compiled_shader & result)
 
     glDeleteShader(result.vertexID);
     glDeleteShader(result.fragmentID);
-    free(vertexShaderSource);
-    free(fragmentShaderSource);
 
     return true;
 }

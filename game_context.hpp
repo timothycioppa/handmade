@@ -22,6 +22,8 @@ struct game_context
 
 	float windowWidth;
 	float windowHeight;
+
+
 	float aspectRatio;
 };
 

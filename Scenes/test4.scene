@@ -1,36 +1,99 @@
 sectors
-count 4
-floor 0 ceiling 20 center -25 -10  dimension 50 40  wall 0 1 2 3
-floor 0 ceiling 20 center -25 35  dimension 50 50  wall 2 4 5 6
-floor 0 ceiling 20 center -70 35  dimension 40 50  wall 7 8 9 4
-floor 0 ceiling 20 center 15 -10  dimension 30 40  wall 10 3 11 12
+count 13
+floor 0 ceiling 20 center 5 -20  dimension 50 40  wall 0 1 2 3
+floor 0 ceiling 20 center -45 -20  dimension 50 40  wall 4 5 6 1
+floor 0 ceiling 20 center -45 10  dimension 50 20  wall 6 7 8 9
+floor 0 ceiling 20 center -45 -50  dimension 50 20  wall 10 11 4 12
+floor 0 ceiling 20 center -45 -70  dimension 50 20  wall 13 14 10 15
+floor 0 ceiling 20 center -45 30  dimension 50 20  wall 8 16 17 18
+floor 0 ceiling 20 center -80 30  dimension 20 20  wall 19 20 21 16
+floor 0 ceiling 20 center -100 30  dimension 20 20  wall 22 23 24 20
+floor 0 ceiling 20 center -80 -70  dimension 20 20  wall 25 26 27 14
+floor 0 ceiling 20 center -100 -70  dimension 20 20  wall 28 29 30 26
+floor 0 ceiling 20 center -100 55  dimension 20 30  wall 24 31 32 33
+floor 0 ceiling 20 center -100 80  dimension 20 20  wall 32 34 35 36
+floor 0 ceiling 20 center -120 80  dimension 20 20  wall 37 38 39 34
 segments
-count 13
-s 0 -30 e -50 -30 f 0 b -1
-s -50 -30 e -50 10 f 0 b -1
-s -50 10 e 0 10 f 0 b 1
-s 0 10 e 0 -30 f 0 b 3
-s -50 10 e -50 60 f 1 b 2
-s -50 60 e 0 60 f 1 b -1
-s 0 60 e 0 10 f 1 b -1
-s -50 10 e -90 10 f 2 b -1
-s -90 10 e -90 60 f 2 b -1
-s -90 60 e -50 60 f 2 b -1
-s 30 -30 e 0 -30 f 3 b -1
-s 0 10 e 30 10 f 3 b -1
-s 30 10 e 30 -30 f 3 b -1
+count 40
+s 30 -40 e -20 -40 f 0 b -1
+s -20 -40 e -20 0 f 0 b 1
+s -20 0 e 30 0 f 0 b -1
+s 30 0 e 30 -40 f 0 b -1
+s -20 -40 e -70 -40 f 1 b 3
+s -70 -40 e -70 0 f 1 b -1
+s -70 0 e -20 0 f 1 b 2
+s -70 0 e -70 20 f 2 b -1
+s -70 20 e -20 20 f 2 b 5
+s -20 20 e -20 0 f 2 b -1
+s -20 -60 e -70 -60 f 3 b 4
+s -70 -60 e -70 -40 f 3 b -1
+s -20 -40 e -20 -60 f 3 b -1
+s -20 -80 e -70 -80 f 4 b -1
+s -70 -80 e -70 -60 f 4 b 8
+s -20 -60 e -20 -80 f 4 b -1
+s -70 20 e -70 40 f 5 b 6
+s -70 40 e -20 40 f 5 b -1
+s -20 40 e -20 20 f 5 b -1
+s -70 20 e -90 20 f 6 b -1
+s -90 20 e -90 40 f 6 b 7
+s -90 40 e -70 40 f 6 b -1
+s -90 20 e -110 20 f 7 b -1
+s -110 20 e -110 40 f 7 b -1
+s -110 40 e -90 40 f 7 b 10
+s -70 -80 e -90 -80 f 8 b -1
+s -90 -80 e -90 -60 f 8 b 9
+s -90 -60 e -70 -60 f 8 b -1
+s -90 -80 e -110 -80 f 9 b -1
+s -110 -80 e -110 -60 f 9 b -1
+s -110 -60 e -90 -60 f 9 b -1
+s -110 40 e -110 70 f 10 b -1
+s -110 70 e -90 70 f 10 b 11
+s -90 70 e -90 40 f 10 b -1
+s -110 70 e -110 90 f 11 b 12
+s -110 90 e -90 90 f 11 b -1
+s -90 90 e -90 70 f 11 b -1
+s -110 70 e -130 70 f 12 b -1
+s -130 70 e -130 90 f 12 b -1
+s -130 90 e -110 90 f 12 b -1
 nodes
-count 13
-seg 0 f 1 b -1
-seg 1 f 2 b 7
-seg 2 f 3 b 4
-seg 3 f -1 b 10
+count 40
+seg 0 f 1 b 10
+seg 1 f 2 b 4
+seg 2 f 3 b 9
+seg 3 f -1 b -1
 seg 4 f 5 b -1
-seg 5 f 6 b -1
-seg 6 f -1 b -1
+seg 5 f 6 b 19
+seg 6 f -1 b 7
 seg 7 f 8 b -1
-seg 8 f 9 b -1
-seg 9 f -1 b -1
-seg 10 f 11 b -1
-seg 11 f 12 b -1
+seg 8 f -1 b 16
+seg 9 f 18 b -1
+seg 10 f 11 b 13
+seg 11 f 12 b 27
 seg 12 f -1 b -1
+seg 13 f 14 b -1
+seg 14 f 15 b 25
+seg 15 f -1 b -1
+seg 16 f 17 b -1
+seg 17 f -1 b -1
+seg 18 f -1 b -1
+seg 19 f 20 b -1
+seg 20 f 21 b 22
+seg 21 f -1 b 33
+seg 22 f 23 b -1
+seg 23 f 24 b 37
+seg 24 f -1 b 31
+seg 25 f 26 b -1
+seg 26 f -1 b 28
+seg 27 f 30 b -1
+seg 28 f 29 b -1
+seg 29 f -1 b -1
+seg 30 f -1 b -1
+seg 31 f 32 b -1
+seg 32 f -1 b 34
+seg 33 f 36 b -1
+seg 34 f 35 b -1
+seg 35 f -1 b -1
+seg 36 f -1 b -1
+seg 37 f 38 b -1
+seg 38 f 39 b -1
+seg 39 f -1 b -1

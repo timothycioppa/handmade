@@ -2,7 +2,6 @@
 
 in vec2 TexCoords;
 uniform sampler2D hdrBuffer;
-uniform bool hdr;
 uniform float exposure;
 out vec4 FragColor;
 

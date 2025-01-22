@@ -15,5 +15,6 @@ struct Transform
 
 void initialize_transform(Transform & t, glm::vec3 pos, glm::vec3 s, float angle, glm::vec3 axs);
 void update_model_matrix(Transform & t);
+glm::mat4 localToWorld(Transform & t);
 
 #endif

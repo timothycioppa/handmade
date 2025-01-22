@@ -27,7 +27,7 @@ void GAME_Initialize()
     gContext.windowWidth = WINDOW_WIDTH;
     gContext.windowHeight = WINDOW_HEIGHT;
     gContext.aspectRatio = float(WINDOW_WIDTH) / float(WINDOW_HEIGHT);
-    
+
     for (int i = 0; i < NUM_KEY_CODES; i++) 
     { 
         key_state & state = gContext.key_states[i];
@@ -69,8 +69,8 @@ void GAME_ProcessFrame(game_context & context)
 		
     check_for_state_change(context);
     
-	gCurrentGameState->Update(context);	
-    gCurrentGameState->Render(context);
+	gCurrentGameState->Update(context);
+    G_RenderFrame(gCurrentGameState, context);	
     gCurrentGameState->PostRender(context);
 
     #ifdef EDITOR_DEBUG
@@ -80,10 +80,11 @@ void GAME_ProcessFrame(game_context & context)
     Audio_PlayAllSounds();
 }
 
+
 void GAME_ProcessEvent(system_event * evt, game_context & context) 
 { 
 	context.movingMouse = false;
-	
+
 	switch (evt->Type) 
 	{ 
 		case system_event_type::KEY_EVT: 

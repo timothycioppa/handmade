@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "main.hpp"
+#include "scratch.hpp"
 
 #define TARGET_FPS 90.0f
 #define LIMIT_FRAMERATE 0
@@ -10,12 +11,13 @@
 int main(int argc, char** argv)
 {
 	GLFWwindow* window;
-
+	
 	glfwInit();
 	glfwWindowHint(GLFW_SAMPLES, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	
 	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Rjune", NULL, NULL);
 	
 	if (window == NULL) 
@@ -32,6 +34,8 @@ int main(int argc, char** argv)
 	glfwMakeContextCurrent(window);
 	gladLoadGL();
 
+	// initialize the scratch buffer
+	init_scratch();
 
 	#ifdef EDITOR_DEBUG
 		Editor_Init(window);
@@ -47,10 +51,12 @@ int main(int argc, char** argv)
 
 	while (gContext.gameRunning)
 	{
+		init_scratch();
+		
 		glfwPollEvents();
 
 		#ifdef EDITOR_DEBUG
-				Editor_BeginFrame();
+			Editor_BeginFrame();
 		#endif
 
 		double preTickTime = glfwGetTime();
@@ -60,6 +66,7 @@ int main(int argc, char** argv)
 		GAME_PostProcessFrame(gContext, float(postTickTime - lastUpdateTime));	
 		
 		lastUpdateTime = postTickTime;		
+
 
 		#ifdef EDITOR_DEBUG	
 				Editor_RenderFrame(gContext);
@@ -138,11 +145,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	gContext.windowWidth = width;
-	gContext.windowHeight = height;
-	gContext.aspectRatio = width / height;
-	
-    // make sure the viewport matches the new window dimensions; note that width and 
-    // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
+	gContext.windowWidth = (float) width;
+	gContext.windowHeight = (float) height;
+	gContext.aspectRatio = (float) width / (float) height;
 }
