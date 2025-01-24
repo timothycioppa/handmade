@@ -11,6 +11,7 @@
 #include <string.h>
 #include "platform_common.hpp"
 
+
 #pragma pack(push, 1)
 struct bitmap_header
 {	
