@@ -162,7 +162,6 @@ void R_DrawLines()
     _linesToRender = 0;
 }
 
-
 #define TEXT_BUFF_SIZE 256
 #define MAX_TEXT_COMMANDS 256
 struct DrawTextCommand

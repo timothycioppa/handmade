@@ -320,3 +320,33 @@ glm::vec3 segment_normal(wall_segment & segment)
 {
     return glm::normalize(glm::cross(segment.start - segment.end, {0,1,0}));
 }
+
+void traverse_bsp(bsp_node *node, BSP_Walker callback) 
+{
+    if (!node) 
+    {
+        return;
+    }
+    
+    traverse_bsp(node->front, callback);
+    traverse_bsp(node->back, callback);
+    callback(*node);
+}
+
+void traverse_bsp(bsp_node *node, BSP_Walker callback, BSP_Predicate predicate) 
+{
+    if (!node) 
+    {
+        return;
+    }
+    
+    traverse_bsp(node->front, callback);
+    traverse_bsp(node->back, callback);
+
+    bsp_node & n = *node;
+    
+    if (predicate(n)) 
+    {
+        callback(n);
+    }
+}

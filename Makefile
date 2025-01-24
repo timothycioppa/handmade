@@ -1,9 +1,9 @@
 INCLUDES=-Iinclude -Iinclude/GL -Iinclude/glad -Iinlude/glfw -Iinclude/glm -Iinclude/freetype
 LIBS= freetype.dll glad.a libglfw3.a imgui.a -lopengl32  -lgdi32
 
-BASE_FLAGS=-DGLM_FORCE_LEFT_HANDED
+BASE_FLAGS=-DGLM_FORCE_LEFT_HANDED -lpthread
 DEBUG_FLAGS=-DEDITOR_DEBUG -g
-ALLOBJECTS=build/obj/main.o build/obj/ui_button.o build/obj/bsp.o build/obj/scratch.o build/obj/bsp_collision.o build/obj/TextureStore.o build/obj/Transform.o build/obj/editor_controller.o build/obj/editor_main.o build/obj/g_main.o build/obj/game_context.o build/obj/GAME_main.o build/obj/game_state.o build/obj/i_input.o build/obj/light.o build/obj/math_utils.o build/obj/player.o build/obj/r_main.o build/obj/scene_parser.o build/obj/utils.o build/obj/GLMesh.o build/obj/GLShader.o build/obj/GLTextRenderer.o build/obj/GLTexture.o build/obj/LevelEditor.o  build/obj/TitleScreen.o build/obj/Gameplay.o build/obj/game_audio.o build/obj/editor_utils.o build/obj/ShaderStore.o build/obj/particle_system.o
+ALLOBJECTS=build/obj/main.o build/obj/work_queue.o build/obj/ui_button.o build/obj/bsp.o build/obj/scratch.o build/obj/bsp_collision.o build/obj/TextureStore.o build/obj/Transform.o build/obj/editor_controller.o build/obj/editor_main.o build/obj/g_main.o build/obj/game_context.o build/obj/GAME_main.o build/obj/game_state.o build/obj/i_input.o build/obj/light.o build/obj/math_utils.o build/obj/player.o build/obj/r_main.o build/obj/scene_parser.o build/obj/utils.o build/obj/GLMesh.o build/obj/GLShader.o build/obj/GLTextRenderer.o build/obj/GLTexture.o build/obj/LevelEditor.o  build/obj/TitleScreen.o build/obj/Gameplay.o build/obj/game_audio.o build/obj/editor_utils.o build/obj/ShaderStore.o build/obj/particle_system.o
 
 all: executable
 debug: BASE_FLAGS += $(DEBUG_FLAGS)
@@ -20,6 +20,9 @@ build/obj/main.o: main.cpp main.hpp
 
 build/obj/Transform.o: Transform.cpp Transform.hpp
 	g++ $(BASE_FLAGS) -c Transform.cpp -o build/obj/Transform.o $(INCLUDES)
+
+build/obj/work_queue.o: work_queue.cpp work_queue.hpp
+	g++ $(BASE_FLAGS) -c work_queue.cpp -o build/obj/work_queue.o $(INCLUDES)
 
 build/obj/bsp.o: bsp.cpp bsp.hpp
 	g++ $(BASE_FLAGS) -c bsp.cpp -o build/obj/bsp.o $(INCLUDES)

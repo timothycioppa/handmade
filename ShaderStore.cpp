@@ -23,6 +23,7 @@ void init_uniforms(standard_shadow_ids *ids, compiled_shader & s)
 {
     unsigned int pID = s.programID;
     standard_shadow_ids & uniformIDS = *ids;
+    uniformIDS.useShadows = glGetUniformLocation(pID, "useShadows");
     uniformIDS.shadowMapID = glGetUniformLocation(pID, "unity_ShadowMap");
     uniformIDS.mainTexID = glGetUniformLocation(pID, "material.mainTex");
     uniformIDS.diffuseID = glGetUniformLocation(pID, "material.diffuse");
@@ -54,14 +55,17 @@ void init_uniforms(editor_grid_ids *ids, compiled_shader & s)
 void init_uniforms(hdr_blit_ids *ids, compiled_shader & s) 
 {
     unsigned int pID = s.programID;
+    ids->useBloom =  glGetUniformLocation(pID, "useBloom");
     ids->hdrBuffer = glGetUniformLocation(pID, "hdrBuffer");
+    ids->blurBuffer = glGetUniformLocation(pID, "blurBuffer");
     ids->exposure = glGetUniformLocation(pID, "exposure");
 }
 
 void init_uniforms(blur_ids *ids, compiled_shader & s) 
 {
     unsigned int pid = s.programID;
-    ids->colorBuffer =  glGetUniformLocation(pid, "colorBuffer");
+    ids->image =  glGetUniformLocation(pid, "image");
+    ids->horizontal =  glGetUniformLocation(pid, "horizontal");
 }
 
 void init_uniforms(text_render_ids *ids, compiled_shader & s) 

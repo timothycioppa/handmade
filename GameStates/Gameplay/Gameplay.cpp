@@ -19,6 +19,10 @@ raycast_hit hit;
 const char* sectortype = "ROOM";
 const char* solidsegmenttype = "WALL";
 gameplay_context gameContext;
+float amp = 0.05f;
+float speed = 8.0f;
+glm::vec3 weaponScale = {.05, .1, .8};
+glm::vec3 weaponOffset = {0.5f, 0.0f, 0.25f};
 
 struct collision_info 
 {
@@ -26,7 +30,6 @@ struct collision_info
     bool hitEnemy;
     bool hitGeometry;
 };
-
 
 struct player_state
 {
@@ -57,11 +60,15 @@ player_state gPlayerState;
 // callback when the player moves between sectors
 void process_player_state(player_state & state); 
 void process_sector_change(sector* oldSector, sector* newSector, player_state & state);
-void clear_single_frame_flags(bsp_tree & tree);
+void clear_transient_flags(bsp_tree & tree);
 void set_hit_highlighted();
 void test_collisions(glm::vec3 pos, bsp_tree & tree, collision_info & info) ;
 void update_entities() ;
 void update_weapon_position() ;
+void check_visibility(bsp_tree & tree);
+
+
+
 
 GAMESTATE_INIT(Gameplay)
 { 	   
@@ -110,7 +117,7 @@ GAMESTATE_INIT(Gameplay)
 }
 
 GAMESTATE_UPDATE(Gameplay)
-{ 
+{     
     sector *nextSector = get_sector(main_player.Position, scene); 
     
     if (nextSector != currentSector)
@@ -118,7 +125,8 @@ GAMESTATE_UPDATE(Gameplay)
         process_sector_change(currentSector, nextSector, gPlayerState);
         currentSector = nextSector;
     }
-
+    
+    
     gPlayerState.grounded = !main_player.Jumping && !main_player.Falling;
 
     // handle jumping
@@ -313,6 +321,7 @@ GAMESTATE_UPDATE(Gameplay)
 
     update_entities();
     update_weapon_position();
+    check_visibility(scene);
     process_player_state(gPlayerState);
 }
 
@@ -323,7 +332,7 @@ GAMESTATE_RENDER(Gameplay)
 
 GAMESTATE_POSTRENDER(Gameplay)
 { 
-    clear_single_frame_flags(scene);
+    clear_transient_flags(scene);
 }
 
 GAMESTATE_EDITOR(Gameplay)
@@ -526,13 +535,15 @@ void set_hit_highlighted()
     }
 }
 
-void clear_single_frame_flags(bsp_tree & tree)
+void clear_transient_flags(bsp_tree & tree)
 {
     for (int i = 0; i < tree.numRenderables; i++) 
     {
         node_render_data & r = tree.renderables[i];
-        r.rendered = false;
+
         UNSET_HIGHLIGHTED(r);
+        CLEAR_RENDERED(r);
+        CLEAR_VISIBLE(r);
     }
 }
 
@@ -640,11 +651,6 @@ void process_player_state(player_state & state)
     gPlayerState.Jumped = false;
 }
 
-float amp = 0.05f;
-float speed = 8.0f;
-glm::vec3 weaponScale = {.05, .1, .8};
-glm::vec3 weaponOffset = {0.5f, 0.0f, 0.25f};
-
 void update_weapon_position() 
 { 
     float bobOffset = sin(speed * gContext.applicationTime) * amp;   
@@ -662,4 +668,38 @@ void update_weapon_position()
     gameContext.weaponTransform.localToWorld = glm::scale(glm::mat4(1.0f), weaponScale);
     gameContext.weaponTransform.localToWorld =  glm::inverse(glm::lookAt(weaponPos, weaponPos + gameContext.weaponAimDir, {0,1,0})) *  gameContext.weaponTransform.localToWorld;
 
+}
+
+void check_visibility(bsp_tree & scene) 
+{
+    glm::vec3 origin = main_player.Position;
+    glm::vec3 direction = main_player.Forward;
+
+    for (int i = 0; i < scene.numRenderables; i++) 
+    {
+        node_render_data & r = scene.renderables[i];
+        CLEAR_VISIBLE(r);
+
+        switch (r.type) 
+        {
+            case RenderableType::RT_SOLID_WALL:
+            case RenderableType::RT_WALL_BOTTOM_SEGMENT:
+            case RenderableType::RT_WALL_TOP_SEGMENT:
+            {
+                wall_segment & segment = scene.segments[r.featureIndex];
+                float test0 = glm::dot(glm::normalize(segment.start - origin), direction);
+                float test1 = glm::dot(glm::normalize(segment.end - origin), direction);
+                if (test0 > 0 || test1 > 0) 
+                {
+                    SET_VISIBLE(r);
+                } 
+             } break;
+
+            case RenderableType::RT_CEILING:
+            case RenderableType::RT_FLOOR:
+            { 
+                SET_VISIBLE(r);
+            }
+        }
+    }
 }

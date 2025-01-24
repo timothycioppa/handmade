@@ -26,6 +26,7 @@ struct shadow_depth_ids
 
 struct standard_shadow_ids 
 { 
+    unsigned int useShadows;
     unsigned int shadowMapID;
     unsigned int mainTexID;
     unsigned int diffuseID;
@@ -55,13 +56,16 @@ struct editor_grid_ids
 
 struct hdr_blit_ids 
 { 
+    unsigned int useBloom;
     unsigned int hdrBuffer;
+    unsigned int blurBuffer;
     unsigned int exposure;
 };
 
 struct blur_ids 
 { 
-    unsigned int colorBuffer;
+    unsigned int image;
+    unsigned int horizontal;
 };
 
 struct colored_rect_ids 

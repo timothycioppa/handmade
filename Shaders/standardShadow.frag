@@ -1,7 +1,7 @@
 #version 330 core
 layout (location = 0) out vec4 FragColor;
 layout (location = 1) out vec3 FragNormal;
-layout (location = 2) out vec3 FragPosition;
+layout (location = 2) out vec3 FragBrightness;
 #define MAX_LIGHTS 4
 
 in VS_OUT 
@@ -37,6 +37,7 @@ struct light_data
     float intensity;
 };
 
+uniform int useShadows;
 uniform time_data time;
 uniform sampler2D unity_ShadowMap;
 uniform vec3 unity_LightPosition;
@@ -86,15 +87,8 @@ float calculateFog(vec3 pos)
     return max(0.15f, fog);
 }
 
-
-
-
 void main()
 {          
-
-    // vec2 tex_st = vec2(2.0f, 2.0f);
-    // vec2 tex_offset = vec2(time.totalTime * 0.025f, time.totalTime * 0.025f);
-    // vec2 texCoords = (fs_in.TexCoords + tex_offset) * tex_st;
 
     float shadowValue = ShadowCalculation(fs_in.FragPosLightSpace);
     vec3 textureColor = texture(material.mainTex,fs_in.TexCoords).rgb; 
@@ -114,20 +108,35 @@ void main()
             float diffuseValue = max(dot(norm, lightDir), 0.0);
             vec3 reflectDir = reflect(-lightDir, norm);  
             float specValue = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-            
-             vec3 diffuse = diffuseValue * material.diffuse;          
+            vec3 diffuse = diffuseValue * material.diffuse;          
             vec3 specular = specValue * lights[i].color;      
             calculatedColor += lights[i].intensity * (diffuse + specular) * invSqDist;
         }
     }
 
     float fog = calculateFog(fs_in.FragPos);
-    float minShadow = 0.2f;
-    float remappedShadow = minShadow + (1.0f - minShadow) * (1.0f - shadowValue);
+    float remappedShadow = 1.0f;
+
+    if (useShadows == 1) 
+    {
+        float minShadow = 0.2f;
+        float remappedShadow = minShadow + (1.0f - minShadow) * (1.0f - shadowValue);
+    }
+
     float multiplier = fog * remappedShadow;
     vec3 finalColor = multiplier * (lightAmbientColor + calculatedColor) * textureColor;
 
-    FragColor = vec4(finalColor * multiplier, 1.0);
+    FragColor = vec4(finalColor, 1.0);
     FragNormal = 0.5f * (norm + 1.5f);
-    FragPosition = fs_in.FragPos.xyz;
+
+    float brightness = dot(finalColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    
+    if(brightness > 1.0f) 
+    {
+        FragBrightness = finalColor.rgb;
+    }
+    else
+    {
+        FragBrightness = vec3(0,0,0);
+    }
 }

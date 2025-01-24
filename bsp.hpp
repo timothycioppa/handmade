@@ -77,15 +77,14 @@ enum RenderableType
 
 enum RenderFlags 
 {
-    FLAG_0 = (1 << 0),
-    FLAG_1   = (1 << 1),
-    FLAG_2 = (1 << 2),
+    RF_HILIGHTED = (1 << 0),
+    RF_RENDERED   = (1 << 1),
+    RF_VISIBLE = (1 << 2),
     FLAG_3 = (1 << 3)
 };
 
 struct node_render_data 
 {
-    bool rendered;
     bool highlighted;
     unsigned int renderFlags;    
     RenderableType type; 
@@ -94,9 +93,19 @@ struct node_render_data
     Material material;
 };
 
-#define IS_HIGHLIGHTED(r) ((((r).renderFlags) & FLAG_0) > 0)
-#define SET_HIGHLIGHTED(r) (((r).renderFlags) |= FLAG_0)
-#define UNSET_HIGHLIGHTED(r) (((r).renderFlags) &= ~FLAG_0)
+#define IS_HIGHLIGHTED(r) ((((r).renderFlags) & RF_HILIGHTED) > 0)
+#define SET_HIGHLIGHTED(r) (((r).renderFlags) |= RF_HILIGHTED)
+#define UNSET_HIGHLIGHTED(r) (((r).renderFlags) &= ~RF_HILIGHTED)
+
+#define HAS_BEEN_RENDERED(r) ((((r).renderFlags) & RF_RENDERED) > 0)
+#define MARK_RENDERED(r) (((r).renderFlags) |= RF_RENDERED)
+#define CLEAR_RENDERED(r) (((r).renderFlags) &= ~RF_RENDERED)
+
+
+#define IS_VISIBLE(r) ((((r).renderFlags) & RF_VISIBLE) > 0)
+#define SET_VISIBLE(r) (((r).renderFlags) |= RF_VISIBLE)
+#define CLEAR_VISIBLE(r) (((r).renderFlags) &= ~RF_VISIBLE)
+
 
 struct bsp_tree 
 {    
@@ -133,7 +142,6 @@ struct insertion_point
     int insertionSide; // 0 = front, 1 = back
 };
 
-
 #define SECTOR_NODE(s, sid) s->sector_id = sid; \
     s->segment_id = -1; \
     s->front = s->back = nullptr; \
@@ -147,6 +155,12 @@ struct insertion_point
         s->back = b;  \
         s->front = f; \
          
+typedef void (*BSP_Walker)(bsp_node & node);
+typedef bool (*BSP_Predicate)(bsp_node & node);
+
+void traverse_bsp(bsp_node *node, BSP_Walker callback) ;
+void traverse_bsp(bsp_node *node, BSP_Walker callback, BSP_Predicate predicate) ;
+
 sector* get_sector(const glm::vec3 & testPos, bsp_tree & tree);
 void bsp_tree_free(bsp_tree & tree);
 void initialize_render_data(bsp_tree & tree);
@@ -155,5 +169,7 @@ glm::vec3 segment_normal(wall_segment & segment);
 
 #define INIT_SEGMENT(n, i) n.segmentIndex = i; n.front = n.back = nullptr;
 #define EXTRACT_WALL_SEGMENT(n) tree.segments[n->segmentIndex];
+
+
 
 #endif

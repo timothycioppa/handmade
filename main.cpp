@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "main.hpp"
 #include "scratch.hpp"
+#include "work_queue.hpp"
 
 #define TARGET_FPS 90.0f
 #define LIMIT_FRAMERATE 0
@@ -94,8 +95,6 @@ int main(int argc, char** argv)
 	#ifdef EDITOR_DEBUG
 		Editor_Shutdown();
 	#endif
-	
-
 
 	GAME_Cleanup() ;
 	glfwDestroyWindow(window);
